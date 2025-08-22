@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}VIN Registry{% endblock %}
+{% block content %}
+<h1>VIN Registry</h1>
+<form method="GET">
+  <input type="text" name="q" value="{{ query or '' }}" placeholder="Search VIN...">
+  <button type="submit">Search</button>
+</form>
+{% if items %}
+  <table><!-- ... --></table>
+{% elif query %}
+  <p>No records found for "{{ query }}".</p>
+{% endif %}
+{% endblock %}

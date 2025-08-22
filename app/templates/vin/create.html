@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Add VIN{% endblock %}
+{% block content %}
+<h1>Add VIN Record</h1>
+<form method="POST">
+  <div><label>VIN</label><input type="text" name="vin" maxlength="17" required></div>
+  <div><label>Metadata (JSON or notes)</label><textarea name="meta"></textarea></div>
+  <button type="submit">Create</button>
+</form>
+{% endblock %}

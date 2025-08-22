@@ -1,0 +1,112 @@
+{# app/templates/main/index.html #} {% extends "base.html" %} {% block title
+%}Welcome — Elcorp Namibia{% endblock %} {% block content %}
+
+<!-- 1. HERO -->
+<section class="hero1">
+  <div class="container">
+    <h1 class="hero__title">Trust Every VIN. Power Every Transaction.</h1>
+    <p class="hero__subtitle">
+      Elcar’s tamper-proof ledger meets Elcoin’s seamless
+      micropayments—redefining vehicle identity and incentives.
+    </p>
+    <a href="#features" class="btn btn--primary">Explore Our Solutions</a>
+  </div>
+</section>
+
+<section class="hero">
+  <h1>Elcorp Namibia</h1>
+  <p>
+    Your trusted partner for transparent vehicle histories and impactful
+    blockchain solutions in Southern Africa.
+  </p>
+
+  {% if not current_user.is_authenticated %}
+  <a href="{{ url_for('auth.register') }}" class="btn-primary">Get Started</a>
+  <a href="{{ url_for('auth.login') }}" class="btn-secondary">Sign In</a>
+  {% else %}
+  <a href="{{ url_for('vin.list_vins') }}" class="btn-primary"
+    >Browse VIN Registry</a
+  >
+  <a href="{{ url_for('main.governance') }}" class="btn-secondary"
+    >View Governance</a
+  >
+  {% endif %}
+</section>
+
+<!-- 2. FEATURES -->
+<section id="features" class="features">
+  <div class="container grid">
+    <!-- Elcar -->
+    <div class="feature">
+      <div class="feature__icon">
+        <!-- Replace with your SVG -->
+        <img
+          id="brand-logo"
+          src="{{ url_for('static', filename='img/Elcar.svg') }}"
+          alt="Elcorp Namibia"
+          width="160"
+          height="auto"
+        />
+      </div>
+      <h2 class="feature__title">Elcar</h2>
+      <p class="feature__desc">
+        Register, verify, and track every VIN on a blockchain ledger—complete
+        with real-time status and immutable audit trails.
+      </p>
+      <a href="/elcar" class="btn btn--secondary">Learn More</a>
+    </div>
+    <!-- Elcoin -->
+    <div class="feature">
+      <div class="feature__icon">
+        <!-- Replace with your SVG -->
+        <img
+          src="{{ url_for('static', filename='img/Elcoin.svg') }}"
+          alt="Elcoin"
+          width="160"
+          height="auto"
+        />
+      </div>
+      <h2 class="feature__title">Elcoin</h2>
+      <p class="feature__desc">
+        Power micro-transactions, reward compliance, and drive governance voting
+        across the Elcar network with our native token.
+      </p>
+      <a href="/elcoin" class="btn btn--secondary">Learn More</a>
+    </div>
+  </div>
+</section>
+
+<!-- 3. SYNERGY CALLOUT -->
+<section class="synergy">
+  <div class="container">
+    <h2 class="synergy__title">How Elcoin Fuels Elcar</h2>
+    <p class="synergy__desc">
+      Every registration fee, status update, and governance vote on Elcar is
+      settled in Elcoin—creating an aligned, transparent ecosystem where usage
+      directly funds platform security and growth.
+    </p>
+    <a href="/ecosystem" class="btn btn--accent">Discover the Ecosystem</a>
+  </div>
+</section>
+
+<!-- 4. SOCIAL PROOF -->
+<section class="testimonials">
+  <div class="container grid testimonials__grid">
+    <!-- Repeat per testimonial -->
+    <div class="testimonial">
+      <blockquote>
+        “Elcar’s dashboard gave our fleet instant visibility—no more paper
+        trails or guesswork.”
+      </blockquote>
+      <cite>— Fleet Manager, Global Logistics Co.</cite>
+    </div>
+    <div class="testimonial">
+      <blockquote>
+        “Integrating Elcoin payments was seamless and cut transaction fees by
+        70%.”
+      </blockquote>
+      <cite>— CFO, AutoParts Exporters</cite>
+    </div>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,19 @@
+# .gitignore
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.sqlite3
+.env
+venv/
+.venv/
+instance/
+.mypy_cache/
+.pytest_cache/
+dist/
+build/
+*.log
+*.bak
+*.swp
+.DS_Store

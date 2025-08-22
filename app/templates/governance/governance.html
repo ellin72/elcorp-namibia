@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Governance & Transparency{% endblock %}
+{% block content %}
+<h1>Platform Governance & Transparency</h1>
+<p>Non-sensitive snapshot of our recent activity:</p>
+<div class="metrics-grid">
+  <div class="metric"><strong>{{ total_lookups }}</strong><span>VIN lookups this week</span></div>
+  <div class="metric"><strong>{{ vins_added }}</strong><span>New VINs added this week</span></div>
+  <div class="metric"><strong>{{ total_vins }}</strong><span>Total VIN records</span></div>
+  <div class="metric"><strong>{{ verifiers_count }}</strong><span>Active verifiers</span></div>
+  <div class="metric"><strong>{{ admins_count }}</strong><span>Admins overseeing platform</span></div>
+</div>
+<p class="note">Figures update in real-time; no personal data displayed.</p>
+{% endblock %}
