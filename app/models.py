@@ -4,15 +4,18 @@ from .extensions import db
 from flask_login import UserMixin
 
 class User(UserMixin, db.Model):
+    __tablename__ = "user"
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(255), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
     is_active = db.Column(db.Boolean, default=True)
     is_admin = db.Column(db.Boolean, default=False)
     otp_secret = db.Column(db.String(32), nullable=True)  # for 2FA
+    role = db.Column(db.String(20), nullable=False, default="user") # roles: user, verifier, admin
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class VinRecord(db.Model):
+    __tablename__ = "vin_record"
     id = db.Column(db.Integer, primary_key=True)
     vin = db.Column(db.String(17), nullable=False, index=True)
     meta = db.Column(db.JSON, nullable=True)
@@ -20,6 +23,7 @@ class VinRecord(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class AuditLog(db.Model):
+    __tablename__ = "audit_log"
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"))
     action = db.Column(db.String(50), nullable=False)

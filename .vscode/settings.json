@@ -9,14 +9,18 @@
         "gunicorn",
         "itsdangerous",
         "micropayments",
+        "mypy",
         "passlib",
         "psycopg",
+        "pycache",
         "pyotp",
+        "pytest",
         "qrcode",
         "Rosaliah",
         "sqla",
         "stylesheet",
         "totp",
+        "venv",
         "yourprovider"
     ]
 }
