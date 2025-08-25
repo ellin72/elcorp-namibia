@@ -1,13 +1,47 @@
 {% extends "base.html" %}
 {% block title %}Sign In — Elcorp Namibia{% endblock %}
+
 {% block content %}
-<h1>Sign In</h1>
-<form method="POST">
-  {{ form.hidden_tag() }}
-  <div>{{ form.email.label }} {{ form.email(size=32) }}</div>
-  <div>{{ form.password.label }} {{ form.password(size=32) }}</div>
-  <div>{{ form.remember() }} {{ form.remember.label }}</div>
-  <div>{{ form.submit(class="btn") }}</div>
-</form>
-<p>No account yet? <a href="{{ url_for('auth.register') }}">Register here</a></p>
+<section class="auth-form">
+  <h1 class="auth-title">Welcome Back</h1>
+  <p class="auth-subtitle">Sign in to access your Elcar dashboard and Elcoin wallet.</p>
+
+  <form method="POST" class="form">
+    {{ form.hidden_tag() }}
+
+    <div class="form-group">
+      {{ form.username.label(class="form-label") }}
+      {{ form.username(class="form-control") }}
+      {% for error in form.username.errors %}
+        <span class="error">{{ error }}</span>
+      {% endfor %}
+    </div>
+
+    <div class="form-group">
+      {{ form.password.label(class="form-label") }}
+      {{ form.password(class="form-control") }}
+      {% for error in form.password.errors %}
+        <span class="error">{{ error }}</span>
+      {% endfor %}
+
+      <!-- Forgot password link -->
+      <p class="forgot-link">
+        <a href="{{ url_for('auth.forgot_password') }}">Forgot your password?</a>
+      </p>
+    </div>
+
+    <div class="form-group checkbox-group">
+      {{ form.remember() }}
+      {{ form.remember.label }}
+    </div>
+
+    <div class="form-group">
+      {{ form.submit(class="btn btn--primary") }}
+    </div>
+  </form>
+
+  <p class="auth-footer">
+    No account yet? <a href="{{ url_for('auth.register') }}">Register here</a>
+  </p>
+</section>
 {% endblock %}

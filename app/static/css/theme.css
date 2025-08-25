@@ -427,3 +427,91 @@ img {
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+.form-group {
+  margin-bottom: 1rem;
+}
+.form-control {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+.error {
+  color: red;
+  font-size: 0.875rem;
+}
+
+.auth-form {
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+  background-color: var(--color-light);
+  border-radius: var(--radius);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.auth-title {
+  font-size: 1.75rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  text-align: center;
+}
+
+.auth-subtitle {
+  font-size: 1rem;
+  color: var(--color-muted);
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-weight: 500;
+}
+
+.form-control {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background-color: var(--color-bg);
+  color: var(--color-text);
+}
+
+.checkbox-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.error {
+  color: red;
+  font-size: 0.875rem;
+}
+
+.auth-footer {
+  text-align: center;
+  margin-top: 1rem;
+  font-size: 0.95rem;
+}
+
+.forgot-link {
+  text-align: right;
+  margin-top: 0.5rem;
+}
+
+.forgot-link a {
+  font-size: 0.875rem;
+  color: var(--color-primary);
+  transition: color 0.2s;
+}
+
+.forgot-link a:hover {
+  color: var(--color-accent);
+}

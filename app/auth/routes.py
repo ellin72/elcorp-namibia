@@ -1,20 +1,24 @@
+# app/auth/routes.py
+"""Authentication routes for user registration, login, 2FA, and password management."""
+
 from flask import render_template, redirect, url_for, flash, request, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from passlib.hash import bcrypt
 import pyotp
 from sqlalchemy import desc
+from app.email import send_password_reset_email
 from ..extensions import db, limiter
 from ..audit import log_action
-from .forms import RegisterForm, LoginForm, TwoFactorForm, ChangePasswordForm
+from .forms import RegisterForm, LoginForm, TwoFactorForm, ChangePasswordForm, ResetPasswordRequestForm, ResetPasswordForm
 from ..models import User, PasswordHistory
 from . import bp
-
 # This file contains the authentication routes for user registration, login, 2FA, and password management.
 # @bp.route("/login"), @bp.route("/register") etc.
 
 @bp.route("/register", methods=["GET","POST"])
 @limiter.limit("5/minute")
 def register():
+    """Handle user registration with form validation and account creation."""
     if current_user.is_authenticated:
         flash("You are already logged in.", "info")
         return redirect(url_for("main.index"))
@@ -24,24 +28,32 @@ def register():
         if User.query.filter_by(email=form.email.data.lower()).first():
             flash("Email already registered.", "warning")
             return redirect(url_for("auth.login"))
-        user = User(email=form.email.data.lower(),
-                    password_hash=bcrypt.hash(form.password.data))
+        user = User(
+            full_name=form.full_name.data.strip(),
+            username=form.username.data.strip().lower(),  # ✅ new line
+            email=form.email.data.lower(),
+            phone=form.phone.data.strip(),
+            organization=form.organization.data.strip() if form.organization.data else None,
+            password_hash=bcrypt.hash(form.password.data),
+            agreed_terms=form.agree_terms.data
+        )
         db.session.add(user)
         db.session.commit()
-        flash("Account created. Please sign in.", "success")
+        flash("Account created successfully. Please sign in.", "success")
         return redirect(url_for("auth.login"))
     return render_template("auth/register.html", form=form)
 
 @bp.route("/login", methods=["GET","POST"])
 @limiter.limit("10/minute")
 def login():
+    """Handle user login with form validation, password check, and optional 2FA."""
     if current_user.is_authenticated:
         flash("You are already logged in.", "info")
         return redirect(url_for("main.index"))
     
     form = LoginForm()
     if form.validate_on_submit():
-        user = User.query.filter_by(email=form.email.data.lower()).first()
+        user = User.query.filter_by(username=form.username.data.strip().lower()).first()
         if user and bcrypt.verify(form.password.data, user.password_hash):
             if user.otp_secret:
                 request.environ["pending_user_id"] = user.id
@@ -55,6 +67,7 @@ def login():
 @bp.route("/2fa", methods=["GET","POST"])
 @login_required
 def two_factor():
+    """Handle two-factor authentication (2FA) verification."""
     if not current_user.otp_secret:
         flash("2FA not enabled for your account.", "warning")
         return redirect(url_for("main.index"))
@@ -97,6 +110,7 @@ def two_factor():
 @bp.route("/logout")
 @login_required
 def logout():
+    """Log out the current user and redirect to the main page."""
     logout_user()
     flash("Signed out.", "info")
     return redirect(url_for("main.index"))
@@ -105,6 +119,7 @@ def logout():
 @login_required
 @limiter.limit("5/minute")
 def change_password():
+    """Allow logged-in users to change their password with validation and history checks."""
     form = ChangePasswordForm()
     if form.validate_on_submit():
         if not bcrypt.verify(form.current_password.data, current_user.password_hash):
@@ -155,3 +170,51 @@ def change_password():
         flash("Password updated successfully.", "success")
         return redirect(url_for("main.index"))
     return render_template("auth/change_password.html", form=form)
+
+
+
+@bp.route('/forgot_password', methods=['GET', 'POST'])
+def forgot_password():
+    """Handle password reset requests by sending a reset email if the user exists."""
+    if current_user.is_authenticated:
+        return redirect(url_for('main.index'))
+    
+    expiry = current_app.config.get("PASSWORD_RESET_TOKEN_EXPIRY")
+    print("PASSWORD_RESET_TOKEN_EXPIRY:", expiry, type(expiry))
+
+    
+    form = ResetPasswordRequestForm()
+    if form.validate_on_submit():
+        user = User.query.filter_by(email=form.email.data.lower()).first()
+        if user:
+            send_password_reset_email(user)
+        flash('Check your email for reset instructions.')
+        return redirect(url_for('auth.login'))
+    return render_template(
+        'auth/forgot_password.html',
+        title='Reset Password',
+        form=form
+    )
+
+@bp.route('/reset_password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    """Allow users to reset their password using a valid token."""
+    if current_user.is_authenticated:
+        return redirect(url_for('main.index'))
+    
+    user = User.verify_reset_password_token(token)
+    if not user:
+        flash('Invalid or expired token.')
+        return redirect(url_for('auth.login'))
+    form = ResetPasswordForm()
+    if form.validate_on_submit():
+        user.set_password(form.password.data)
+        db.session.commit()
+        flash('Your password has been reset. You can now sign in.')
+        return redirect(url_for('auth.login'))
+    return render_template(
+        'auth/reset_password.html',
+        title='Set New Password',
+        form=form
+    )
+    
