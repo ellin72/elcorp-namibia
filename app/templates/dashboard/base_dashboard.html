@@ -1,0 +1,44 @@
+{# templates/dashboard/base_dashboard.html #}
+{% extends "base.html" %}
+{% block title %}Elcorp Namibia Dashboard{% endblock %}
+
+{% block head_extra %}
+  {# include dashboard-specific CSS #}
+  <link rel="stylesheet"
+        href="{{ url_for('static', filename='css/theme.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-layout">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="logo">Elcorp Namibia</div>
+    <nav>
+      <a href="{{ url_for('dashboard.home') }}">🏠 Dashboard</a>
+      <a href="{{ url_for('dashboard.profile') }}">👤 Profile</a>
+      <a href="{{ url_for('dashboard.elcar') }}">🚗 Elcar</a>
+      <a href="{{ url_for('dashboard.elcoin') }}">💰 Elcoin</a>
+      <a href="{{ url_for('dashboard.settings') }}">⚙ Settings</a>
+    </nav>
+    <form action="{{ url_for('auth.logout') }}" method="post">
+      <button type="submit" class="btn-logout">🚪 Log Out</button>
+    </form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="dashboard-main">
+    <header class="topbar">
+      <div class="welcome">Welcome, {{ user.full_name }}!</div>
+      <div class="user-menu">
+        <img src="{{ user.avatar_url or url_for('static', filename='img/default-avatar.png') }}"
+             alt="Avatar" class="avatar">
+      </div>
+    </header>
+
+    <section class="dashboard-content">
+      {% block dashboard_content %}{% endblock %}
+    </section>
+  </main>
+</div>
+{% endblock %}

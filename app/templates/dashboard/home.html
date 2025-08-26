@@ -1,0 +1,68 @@
+{% extends "dashboard/base_dashboard.html" %}
+{% block dashboard_content %}
+
+<section class="welcome-banner card">
+  <h1>Welcome back, {{ user.full_name }}!</h1>
+</section>
+
+<div class="stats-grid">
+  <!-- Wallet Widget -->
+  <div id="wallet-card" class="stat-card">
+    <h3>Wallet Balance</h3>
+    <p class="stat-value" id="wallet-balance">—</p>
+    <h4>Recent Transactions</h4>
+    <ul id="recent-transactions"></ul>
+    <a href="{{ url_for('dashboard.elcoin') }}" class="btn btn--small">Full Wallet</a>
+  </div>
+
+  <!-- Vehicle Widget -->
+  <div id="vehicle-card" class="stat-card">
+    <h3>My Vehicles</h3>
+    <p class="stat-value" id="vehicle-count">—</p>
+    <p class="pending" id="vehicle-pending"></p>
+    <ul id="vehicle-list"></ul>
+    <a href="{{ url_for('dashboard.elcar') }}" class="btn btn--small">Manage Vehicles</a>
+  </div>
+</div>
+
+<script>
+async function loadWallet() {
+  const res = await fetch("{{ url_for('dashboard.api_wallet_overview') }}");
+  const data = await res.json();
+  document.getElementById("wallet-balance").textContent = data.balance + " ELX";
+  const txList = document.getElementById("recent-transactions");
+  txList.innerHTML = "";
+  data.transactions.forEach(tx => {
+    const li = document.createElement("li");
+    li.textContent = `${tx.timestamp} — ${tx.direction === 'out' ? 'Sent to' : 'Received from'} ${tx.counterparty} : ${tx.amount} ELX`;
+    txList.appendChild(li);
+  });
+}
+
+async function loadVehicles() {
+  const res = await fetch("{{ url_for('dashboard.api_vehicles_overview') }}");
+  const data = await res.json();
+  document.getElementById("vehicle-count").textContent = data.count;
+  document.getElementById("vehicle-pending").textContent =
+    data.pending > 0 ? `${data.pending} pending verification` : "";
+  const vList = document.getElementById("vehicle-list");
+  vList.innerHTML = "";
+  data.vehicles.forEach(v => {
+    const li = document.createElement("li");
+    li.textContent = `${v.make} ${v.model} — ${v.verified ? '✅' : '⏳'}`;
+    vList.appendChild(li);
+  });
+}
+
+function refreshWidgets() {
+  loadWallet();
+  loadVehicles();
+}
+
+// Initial load
+refreshWidgets();
+// Refresh every 30 seconds
+setInterval(refreshWidgets, 30000);
+</script>
+
+{% endblock %}

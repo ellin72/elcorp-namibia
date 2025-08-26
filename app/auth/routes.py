@@ -5,6 +5,7 @@ from flask import render_template, redirect, url_for, flash, request, current_ap
 from flask_login import login_user, logout_user, login_required, current_user
 from passlib.hash import bcrypt
 import pyotp
+from urllib.parse import urlparse
 from sqlalchemy import desc
 from app.email import send_password_reset_email
 from ..extensions import db, limiter
@@ -43,14 +44,15 @@ def register():
         return redirect(url_for("auth.login"))
     return render_template("auth/register.html", form=form)
 
-@bp.route("/login", methods=["GET","POST"])
+
+@bp.route("/login", methods=["GET", "POST"])
 @limiter.limit("10/minute")
 def login():
-    """Handle user login with form validation, password check, and optional 2FA."""
+    """Handle user login with form validation, 2FA, and session management."""
     if current_user.is_authenticated:
         flash("You are already logged in.", "info")
-        return redirect(url_for("main.index"))
-    
+        return redirect(url_for("dashboard.home"))
+
     form = LoginForm()
     if form.validate_on_submit():
         user = User.query.filter_by(username=form.username.data.strip().lower()).first()
@@ -58,54 +60,61 @@ def login():
             if user.otp_secret:
                 request.environ["pending_user_id"] = user.id
                 return redirect(url_for("auth.two_factor"))
+
             login_user(user, remember=form.remember.data)
             flash("Welcome back.", "success")
-            return redirect(url_for("main.index"))
+
+            # 🔹 Handle next parameter here
+            next_page = request.args.get("next")
+            if not next_page or urlparse(next_page).netloc != "":
+                next_page = url_for("dashboard.home")
+            return redirect(next_page)
+
         flash("Invalid credentials.", "danger")
+
     return render_template("auth/login.html", form=form)
 
-@bp.route("/2fa", methods=["GET","POST"])
+
+@bp.route("/2fa", methods=["GET", "POST"])
 @login_required
 def two_factor():
     """Handle two-factor authentication (2FA) verification."""
+    # 2FA must be enabled
     if not current_user.otp_secret:
         flash("2FA not enabled for your account.", "warning")
-        return redirect(url_for("main.index"))
+        return redirect(url_for("dashboard.home"))
+
+    # Ensure there’s a pending 2FA session
     if "pending_user_id" not in request.environ:
         flash("2FA session expired. Please log in again.", "warning")
         return redirect(url_for("auth.login"))
+
     if request.environ["pending_user_id"] != current_user.id:
         flash("Invalid 2FA session. Please log in again.", "danger")
         return redirect(url_for("auth.login"))
-    
-    # Clear pending_user_id to prevent reuse
-    del request.environ["pending_user_id"]
-    
-    # If 2FA is already verified, redirect to main page
-    if current_user.is_authenticated and current_user.otp_verified:
-        flash("2FA already verified.", "info")
-        return redirect(url_for("main.index"))
-    
-    # If 2FA secret is not set, redirect to setup
-    if not current_user.otp_secret:
-        flash("2FA not set up. Please configure it first.", "warning")
-        return redirect(url_for("auth.setup_2fa"))
-    
-    # If 2FA secret is set, proceed to verification
-    if current_user.otp_verified:
-        flash("2FA already verified.", "info")
-        return redirect(url_for("main.index"))
-    
-    # If we reach here, user needs to enter 2FA code
-    # Render 2FA form
+
+    # Prepare form
     form = TwoFactorForm()
+
     if form.validate_on_submit():
         totp = pyotp.TOTP(current_user.otp_secret)
         if totp.verify(form.token.data, valid_window=1):
+            # ✅ 2FA success
             flash("2FA verified.", "success")
-            return redirect(url_for("main.index"))
+
+            # Clear pending session marker
+            del request.environ["pending_user_id"]
+
+            # Handle `?next=` redirect safely
+            next_page = request.args.get("next")
+            if not next_page or urlparse(next_page).netloc != "":
+                next_page = url_for("dashboard.home")
+            return redirect(next_page)
+
         flash("Invalid code.", "danger")
+
     return render_template("auth/two_factor.html", form=form)
+
 
 @bp.route("/logout")
 @login_required

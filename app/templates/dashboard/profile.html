@@ -1,0 +1,53 @@
+{# templates/dashboard/profile.html #}
+{% extends "dashboard/base_dashboard.html" %}
+{% block dashboard_content %}
+<h2>Your Profile</h2>
+
+<section class="card">
+  <h3>Edit Profile</h3>
+  <form method="POST" class="form">
+    {{ pform.hidden_tag() }}
+    <div class="form-group">
+      {{ pform.full_name.label(class="form-label") }}
+      {{ pform.full_name(class="form-control") }}
+    </div>
+    <div class="form-group">
+      {{ pform.email.label(class="form-label") }}
+      {{ pform.email(class="form-control") }}
+    </div>
+    <div class="form-group">
+      {{ pform.phone.label(class="form-label") }}
+      {{ pform.phone(class="form-control") }}
+    </div>
+    <div class="form-group">
+      {{ pform.organization.label(class="form-label") }}
+      {{ pform.organization(class="form-control") }}
+    </div>
+    <div class="form-group">
+      {{ pform.submit(class="btn btn--primary") }}
+    </div>
+  </form>
+</section>
+
+<section class="card mt-2">
+  <h3>Change Password</h3>
+  <form method="POST" class="form">
+    {{ pwdform.hidden_tag() }}
+    <div class="form-group">
+      {{ pwdform.current_password.label(class="form-label") }}
+      {{ pwdform.current_password(class="form-control") }}
+    </div>
+    <div class="form-group">
+      {{ pwdform.new_password.label(class="form-label") }}
+      {{ pwdform.new_password(class="form-control") }}
+    </div>
+    <div class="form-group">
+      {{ pwdform.confirm_password.label(class="form-label") }}
+      {{ pwdform.confirm_password(class="form-control") }}
+    </div>
+    <div class="form-group">
+      {{ pwdform.submit(class="btn btn--secondary") }}
+    </div>
+  </form>
+</section>
+{% endblock %}

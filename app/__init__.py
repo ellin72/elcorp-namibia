@@ -3,7 +3,7 @@ import os
 import logging
 from flask import Flask, render_template
 from dotenv import load_dotenv
-from .extensions import db, migrate, login_manager, mail, limiter
+from .extensions import db, migrate, login_manager, mail, limiter, csrf
 
 
 # 1. Load .env into os.environ
@@ -122,6 +122,12 @@ def create_app(test_config=None):
 
     from .vin import bp as vin_bp
     app.register_blueprint(vin_bp)         # mounts "/vin/..."
+    
+    from .dashboard import bp as dashboard_bp
+    app.register_blueprint(dashboard_bp)   # mounts "/dashboard/..."
+    
+    # … init other extensions …
+    csrf.init_app(app)
 
     # 6. Finally set up Flask-Admin
     from .admin import init_admin

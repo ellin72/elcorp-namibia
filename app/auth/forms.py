@@ -30,8 +30,7 @@ class RegisterForm(FlaskForm):
     organization = StringField("Organization", validators=[])
     role = SelectField("Role", choices=[
         ("user", "Regular User"),
-        ("verifier", "Verifier"),
-        ("admin", "Administrator")
+        ("verifier", "Verifier")
     ], validators=[DataRequired()])
     password = PasswordField(
         "Password", 

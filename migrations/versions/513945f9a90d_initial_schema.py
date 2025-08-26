@@ -1,8 +1,8 @@
 """Initial schema
 
-Revision ID: 96b88835d5aa
+Revision ID: 513945f9a90d
 Revises: 
-Create Date: 2025-08-25 11:47:38.651192
+Create Date: 2025-08-26 19:29:36.096743
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '96b88835d5aa'
+revision = '513945f9a90d'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -47,7 +47,7 @@ def upgrade():
     sa.Column('is_admin', sa.Boolean(), nullable=True),
     sa.Column('otp_secret', sa.String(length=32), nullable=True),
     sa.Column('agreed_terms', sa.Boolean(), nullable=True),
-    sa.Column('wallet_address', sa.String(length=42), nullable=True),
+    sa.Column('wallet_address', sa.String(length=36), nullable=False),
     sa.Column('last_login', sa.DateTime(), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.PrimaryKeyConstraint('id'),
@@ -78,12 +78,34 @@ def upgrade():
     with op.batch_alter_table('password_history', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_password_history_user_id'), ['user_id'], unique=False)
 
+    op.create_table('transactions',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('from_user_id', sa.Integer(), nullable=True),
+    sa.Column('to_user_id', sa.Integer(), nullable=True),
+    sa.Column('amount', sa.Numeric(precision=10, scale=2), nullable=False),
+    sa.Column('timestamp', sa.DateTime(), nullable=True),
+    sa.ForeignKeyConstraint(['from_user_id'], ['user.id'], ),
+    sa.ForeignKeyConstraint(['to_user_id'], ['user.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
     op.create_table('user_roles',
     sa.Column('user_id', sa.Integer(), nullable=False),
     sa.Column('role_id', sa.Integer(), nullable=False),
     sa.ForeignKeyConstraint(['role_id'], ['role.id'], ),
     sa.ForeignKeyConstraint(['user_id'], ['user.id'], ),
     sa.PrimaryKeyConstraint('user_id', 'role_id')
+    )
+    op.create_table('vehicles',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('make', sa.String(length=50), nullable=False),
+    sa.Column('model', sa.String(length=50), nullable=False),
+    sa.Column('plate_number', sa.String(length=20), nullable=False),
+    sa.Column('verified', sa.Boolean(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.ForeignKeyConstraint(['user_id'], ['user.id'], ),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('plate_number')
     )
     op.create_table('vin_record',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -106,7 +128,9 @@ def downgrade():
         batch_op.drop_index(batch_op.f('ix_vin_record_vin'))
 
     op.drop_table('vin_record')
+    op.drop_table('vehicles')
     op.drop_table('user_roles')
+    op.drop_table('transactions')
     with op.batch_alter_table('password_history', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_password_history_user_id'))
 

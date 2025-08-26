@@ -1,0 +1,59 @@
+{# templates/dashboard/elcar.html #}
+{% extends "dashboard/base_dashboard.html" %}
+{% block dashboard_content %}
+<h2>Your Fleet</h2>
+
+<table class="table">
+  <thead>
+    <tr><th>Make</th><th>Model</th><th>Plate</th><th>Status</th><th>Actions</th></tr>
+  </thead>
+  <tbody>
+    {% for v in vehicles %}
+      <tr>
+        <td>{{ v.make }}</td>
+        <td>{{ v.model }}</td>
+        <td>{{ v.plate_number }}</td>
+        <td>{{ "Verified" if v.verified else "Pending" }}</td>
+        <td>
+          <button class="btn btn--link"
+                  onclick="populateForm({{ v.id }}, '{{ v.make }}', '{{ v.model }}', '{{ v.plate_number }}')">
+            Edit
+          </button>
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<section class="card mt-2">
+  <h3>{% if form.id.data %}Edit{% else %}Add{% endif %} Vehicle</h3>
+  <form method="POST" class="form">
+    {{ form.hidden_tag() }}
+    {{ form.id() }}
+    <div class="form-group">
+      {{ form.make.label(class="form-label") }}
+      {{ form.make(class="form-control") }}
+    </div>
+    <div class="form-group">
+      {{ form.model.label(class="form-label") }}
+      {{ form.model(class="form-control") }}
+    </div>
+    <div class="form-group">
+      {{ form.plate_number.label(class="form-label") }}
+      {{ form.plate_number(class="form-control") }}
+    </div>
+    <div class="form-group">
+      {{ form.submit(class="btn btn--primary") }}
+    </div>
+  </form>
+</section>
+
+<script>
+function populateForm(id, make, model, plate) {
+  document.querySelector('input[name="id"]').value = id;
+  document.querySelector('input[name="make"]').value = make;
+  document.querySelector('input[name="model"]').value = model;
+  document.querySelector('input[name="plate_number"]').value = plate;
+}
+</script>
+{% endblock %}

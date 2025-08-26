@@ -1,16 +1,8 @@
-# conftest.py
 import os
 import random
-import itertools
 import pytest
 from app import create_app, db
-from app.models import User  # adjust if Role is in a separate file
-from app.models import Role  # update this path to the actual module where Role is defined
-
-
-
-# os.environ.setdefault("PASSWORD_RESET_TOKEN_EXPIRES", "3600")
-
+from app.models import User, Role
 
 # -------------------------
 # App fixture
@@ -28,7 +20,8 @@ def app():
         TESTING=True,
         SQLALCHEMY_DATABASE_URI="sqlite:///:memory:",
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
-        WTF_CSRF_ENABLED=False
+        WTF_CSRF_ENABLED=False,
+        PASSWORD_RESET_TOKEN_EXPIRY=3600,  # default expiry for tests
     )
 
     # Set up the database schema
@@ -83,60 +76,54 @@ def admin_role(session):
     return role
 
 # -------------------------
-# User fixture
+# Admin user fixture
 # -------------------------
 @pytest.fixture
 def admin_user(session, admin_role):
     """
     Creates a default admin user with the admin role.
     """
-    user = User(
-        username="admin",
-        email="admin@example.com"
-    )
-    if hasattr(user, "set_password"):
-        user.set_password("password123")
-
-    # If your User model has a roles relationship
-    if hasattr(user, "roles"):
-        user.roles.append(admin_role)
-
+    user = User(username="admin", email="admin@example.com")
+    user.set_password("password123")
+    user.roles.append(admin_role)
     session.add(user)
     session.commit()
     return user
 
-# 1a. Single-user fixture with unique email & phone
-
+# -------------------------
+# Single-user fixture
+# -------------------------
 @pytest.fixture
 def user(app):
     """
     Creates one user per test with unique username, email, and phone.
     """
-    # Generate a random 6-digit suffix to avoid any collisions
-    suffix   = random.randint(100000, 999999)
+    suffix = random.randint(100000, 999999)
     username = f"testuser{suffix}"
-    email    = f"{username}@example.com"
-    phone    = str(random.randint(600_000_0000, 799_999_9999))
+    email = f"{username}@example.com"
+    phone = str(random.randint(600_000_0000, 799_999_9999))
 
     u = User(
-        username  = username,
-        email     = email,
-        full_name = "Test User",
-        phone     = phone
+        username=username,
+        email=email,
+        full_name="Test User",
+        phone=phone
     )
     u.set_password("password123")
     db.session.add(u)
     db.session.commit()
     return u
 
-
+# -------------------------
+# User factory fixture
+# -------------------------
 @pytest.fixture
 def user_factory(app):
     """
     Factory that emits users with unique credentials each call.
     """
     def _create(**kwargs):
-        suffix   = random.randint(100000, 999999)
+        suffix = random.randint(100000, 999999)
         defaults = {
             'username':  f"user{suffix}",
             'email':     f"user{suffix}@example.com",
@@ -147,10 +134,10 @@ def user_factory(app):
         defaults.update(kwargs)
 
         u = User(
-            username  = defaults['username'],
-            email     = defaults['email'],
-            full_name = defaults['full_name'],
-            phone     = defaults['phone']
+            username=defaults['username'],
+            email=defaults['email'],
+            full_name=defaults['full_name'],
+            phone=defaults['phone']
         )
         u.set_password(defaults['password'])
         db.session.add(u)
@@ -159,5 +146,14 @@ def user_factory(app):
 
     return _create
 
-# -----------------------------------------
-# End of conftest.py
+# -------------------------
+# Auto-push request context
+# -------------------------
+@pytest.fixture(autouse=True)
+def push_test_request_context(app):
+    """
+    Automatically push a request context for every test.
+    This covers both app and request globals (current_app, request, url_for, session).
+    """
+    with app.test_request_context():
+        yield

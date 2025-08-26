@@ -1,0 +1,21 @@
+{% extends "dashboard/base_dashboard.html" %}
+{% block dashboard_content %}
+<h2>Security Settings</h2>
+
+<section class="card">
+  <h3>Two-Factor Authentication</h3>
+  <form method="POST" class="form">
+    {{ form.hidden_tag() }}
+    <div class="form-group checkbox-group">
+      {{ form.enable_2fa() }} {{ form.enable_2fa.label }}
+    </div>
+    <div class="form-group">
+      {{ form.submit(class="btn btn--primary") }}
+    </div>
+  </form>
+  {% if current_user.otp_secret %}
+    <p>Scan this QR code with your authenticator app:</p>
+    <img src="{{ url_for('auth.otp_qr') }}" alt="OTP QR Code">
+  {% endif %}
+</section>
+{% endblock %}
