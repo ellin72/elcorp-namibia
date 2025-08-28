@@ -25,6 +25,8 @@
     {% if current_user.is_authenticated %}
       <a href="{{ url_for('auth.change_password') }}">Change password</a>
       <a href="{{ url_for('auth.logout') }}">Logout</a>
+      <a href="{{ url_for('dashboard.home') }}">Profile</a
+      >
     {% else %}
       <a href="{{ url_for('auth.login') }}">Sign in</a>
     {% endif %}
@@ -45,22 +47,22 @@
       <div>
         <h3>Elcorp</h3>
         <ul>
-          <li><a href="/about">About Us</a></li>
-          <li><a href="/careers">Careers</a></li>
+          <li><a href="{{ url_for('main.governance') }}">About Us</a></li>
+          <li><a href="{{ url_for('main.governance') }}">Careers</a></li>
         </ul>
       </div>
       <div>
         <h3>Products</h3>
         <ul>
-          <li><a href="/elcar">Elcar</a></li>
-          <li><a href="/elcoin">Elcoin</a></li>
+          <li><a href="{{ url_for('main.governance') }}">Elcar</a></li>
+          <li><a href="{{ url_for('main.governance') }}">Elcoin</a></li>
         </ul>
       </div>
       <div>
         <h3>Contact</h3>
         <ul>
           <li><a href="mailto:contact@elcorp.com">contact@elcorp.com</a></li>
-          <li><a href="/support">Support</a></li>
+          <li><a href="{{ url_for('main.governance') }}">Support</a></li>
         </ul>
       </div>
     </div>

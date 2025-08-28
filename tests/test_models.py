@@ -56,7 +56,8 @@ def test_invalid_expiry_config_raises_runtime_error(monkeypatch, user, app):
     monkeypatch.setitem(app.config, "PASSWORD_RESET_TOKEN_EXPIRY", "not-an-int")
     with pytest.raises(RuntimeError) as exc:
         user.get_reset_password_token()
-    assert "Invalid PASSWORD_RESET_TOKEN_EXPIRY" in str(exc.value)
+    assert "Invalid TOKEN_EXPIRY" in str(exc.value)
+
 
 
 def test_verify_reset_password_token_bad_signature(user):
@@ -81,7 +82,8 @@ def test_get_reset_password_token_with_invalid_expiry(user, app, monkeypatch):
     monkeypatch.setitem(app.config, "PASSWORD_RESET_TOKEN_EXPIRY", "invalid")
     with pytest.raises(RuntimeError) as exc:
         user.get_reset_password_token()
-    assert "Invalid PASSWORD_RESET_TOKEN_EXPIRY" in str(exc.value)
+    assert "Invalid TOKEN_EXPIRY" in str(exc.value)
+
 
 
 def test_verify_valid_token(user, app):

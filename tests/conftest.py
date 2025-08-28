@@ -9,37 +9,53 @@ from app.models import User, Role
 # -------------------------
 @pytest.fixture(scope="session")
 def app():
-    """
-    Create a Flask app instance configured for testing.
-    """
     os.environ["FLASK_ENV"] = "testing"
 
-    # Create the app
     app = create_app()
     app.config.update(
         TESTING=True,
         SQLALCHEMY_DATABASE_URI="sqlite:///:memory:",
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
         WTF_CSRF_ENABLED=False,
-        PASSWORD_RESET_TOKEN_EXPIRY=3600,  # default expiry for tests
+        PASSWORD_RESET_TOKEN_EXPIRY=3600,
     )
 
-    # Set up the database schema
+    # Create/drop tables once per session
     with app.app_context():
         db.create_all()
         yield app
         db.session.remove()
         db.drop_all()
 
+
+# -------------------------
+# Auto-seed roles for ALL tests
+# -------------------------
+@pytest.fixture(autouse=True, scope="session")
+def seed_roles(app):
+    """
+    Ensure default roles exist before any test runs.
+    """
+    with app.app_context():
+        base_roles = [
+            ("user",     "Default regular user role"),
+            ("verifier","Can verify VIN records"),
+            ("admin",    "Administrator with full access"),
+        ]
+        for name, desc in base_roles:
+            if not Role.query.filter_by(name=name).first():
+                db.session.add(Role(name=name, description=desc))
+        db.session.commit()
+
+
 # -------------------------
 # Client fixture
 # -------------------------
 @pytest.fixture(scope="session")
 def client(app):
-    """
-    Flask test client for sending requests to the app.
-    """
+    """Flask test client."""
     return app.test_client()
+
 
 # -------------------------
 # Session fixture
@@ -47,33 +63,31 @@ def client(app):
 @pytest.fixture(scope="function")
 def session(app):
     """
-    Creates a new database session for a test and rolls back after.
+    Creates a transactional database session for a single test,
+    rolls back at teardown.
     """
-    with app.app_context():
-        connection = db.engine.connect()
-        transaction = connection.begin()
+    # create a real database connection
+    connection = db.engine.connect()
+    transaction = connection.begin()
 
-        # Bind the session to the connection
-        db.session.bind = connection
+    # bind a session to that connection
+    db.session.bind = connection
 
-        yield db.session
+    yield db.session
 
-        transaction.rollback()
-        connection.close()
-        db.session.remove()
+    transaction.rollback()
+    connection.close()
+    db.session.remove()
+
 
 # -------------------------
-# Role fixture
+# Admin role fixture
 # -------------------------
 @pytest.fixture
 def admin_role(session):
-    """
-    Creates an admin role for testing.
-    """
-    role = Role(name="admin")
-    session.add(role)
-    session.commit()
-    return role
+    """Return the pre-seeded 'admin' Role."""
+    return session.query(Role).filter_by(name="admin").one()
+
 
 # -------------------------
 # Admin user fixture
@@ -81,79 +95,88 @@ def admin_role(session):
 @pytest.fixture
 def admin_user(session, admin_role):
     """
-    Creates a default admin user with the admin role.
+    Create a User with the 'admin' role.
     """
-    user = User(username="admin", email="admin@example.com")
-    user.set_password("password123")
-    user.roles.append(admin_role)
-    session.add(user)
+    u = User(
+        username="admin",
+        email="admin@example.com",
+        full_name="Admin User",
+        phone=str(random.randint(600_000_0000, 799_999_9999)),
+        role=admin_role
+    )
+    u.set_password("password123")
+    session.add(u)
     session.commit()
-    return user
+    return u
+
 
 # -------------------------
 # Single-user fixture
 # -------------------------
 @pytest.fixture
-def user(app):
+def user(session):
     """
-    Creates one user per test with unique username, email, and phone.
+    Create one User per test, always with the 'user' role.
     """
     suffix = random.randint(100000, 999999)
-    username = f"testuser{suffix}"
-    email = f"{username}@example.com"
-    phone = str(random.randint(600_000_0000, 799_999_9999))
+    role = session.query(Role).filter_by(name="user").one()
 
     u = User(
-        username=username,
-        email=email,
+        username=f"testuser{suffix}",
+        email=f"testuser{suffix}@example.com",
         full_name="Test User",
-        phone=phone
+        phone=str(random.randint(600_000_0000, 799_999_9999)),
+        role=role
     )
     u.set_password("password123")
-    db.session.add(u)
-    db.session.commit()
+    session.add(u)
+    session.commit()
     return u
 
+
 # -------------------------
-# User factory fixture
+# User-factory fixture
 # -------------------------
 @pytest.fixture
-def user_factory(app):
+def user_factory(session):
     """
-    Factory that emits users with unique credentials each call.
+    Returns a callable that creates users with unique creds and a 'user' role.
+    Usage:
+        alice = user_factory()
+        bob   = user_factory(role=verifier_role)
     """
     def _create(**kwargs):
         suffix = random.randint(100000, 999999)
         defaults = {
-            'username':  f"user{suffix}",
-            'email':     f"user{suffix}@example.com",
-            'full_name': f"Test User {suffix}",
-            'password':  "password123",
-            'phone':     str(random.randint(600_000_0000, 799_999_9999))
+            "username":  f"user{suffix}",
+            "email":     f"user{suffix}@example.com",
+            "full_name": f"Test User {suffix}",
+            "password":  "password123",
+            "phone":     str(random.randint(600_000_0000, 799_999_9999)),
+            "role":      session.query(Role).filter_by(name="user").one()
         }
         defaults.update(kwargs)
 
         u = User(
-            username=defaults['username'],
-            email=defaults['email'],
-            full_name=defaults['full_name'],
-            phone=defaults['phone']
+            username=defaults["username"],
+            email=defaults["email"],
+            full_name=defaults["full_name"],
+            phone=defaults["phone"],
+            role=defaults["role"]
         )
-        u.set_password(defaults['password'])
-        db.session.add(u)
-        db.session.commit()
+        u.set_password(defaults["password"])
+        session.add(u)
+        session.commit()
         return u
 
     return _create
+
 
 # -------------------------
 # Auto-push request context
 # -------------------------
 @pytest.fixture(autouse=True)
-def push_test_request_context(app):
-    """
-    Automatically push a request context for every test.
-    This covers both app and request globals (current_app, request, url_for, session).
-    """
+def push_request_context(app):
+    """So current_app, url_for, request, etc. all work."""
     with app.test_request_context():
         yield

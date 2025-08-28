@@ -15,7 +15,7 @@
   </form>
   {% if current_user.otp_secret %}
     <p>Scan this QR code with your authenticator app:</p>
-    <img src="{{ url_for('auth.otp_qr') }}" alt="OTP QR Code">
+    <img src="{{ url_for('auth.two_factor') }}" alt="OTP QR Code">
   {% endif %}
 </section>
 {% endblock %}

@@ -1,25 +1,26 @@
-# app/auth/routes.py
 """Authentication routes for user registration, login, 2FA, and password management."""
 
+from urllib.parse import urlparse
 from flask import render_template, redirect, url_for, flash, request, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from passlib.hash import bcrypt
 import pyotp
-from urllib.parse import urlparse
 from sqlalchemy import desc
 from app.email import send_password_reset_email
+from app.models import User, PasswordHistory, Role
 from ..extensions import db, limiter
 from ..audit import log_action
-from .forms import RegisterForm, LoginForm, TwoFactorForm, ChangePasswordForm, ResetPasswordRequestForm, ResetPasswordForm
-from ..models import User, PasswordHistory
+from .forms import RegisterForm, LoginForm, TwoFactorForm, ChangePasswordForm
+from .forms import ResetPasswordRequestForm, ResetPasswordForm
 from . import bp
-# This file contains the authentication routes for user registration, login, 2FA, and password management.
-# @bp.route("/login"), @bp.route("/register") etc.
 
-@bp.route("/register", methods=["GET","POST"])
+# -------------------------
+# USER REGISTRATION
+# -------------------------
+@bp.route("/register", methods=["GET", "POST"])
 @limiter.limit("5/minute")
 def register():
-    """Handle user registration with form validation and account creation."""
+    """Handle user registration with form validation, role assignment, and account creation."""
     if current_user.is_authenticated:
         flash("You are already logged in.", "info")
         return redirect(url_for("main.index"))
@@ -29,22 +30,33 @@ def register():
         if User.query.filter_by(email=form.email.data.lower()).first():
             flash("Email already registered.", "warning")
             return redirect(url_for("auth.login"))
+
+        # Get the selected role or fall back to "user"
+        selected_role = Role.query.filter_by(name=form.role.data).first()
+        if not selected_role:
+            selected_role = Role.query.filter_by(name="user").first()
+
         user = User(
             full_name=form.full_name.data.strip(),
-            username=form.username.data.strip().lower(),  # ✅ new line
+            username=form.username.data.strip().lower(),
             email=form.email.data.lower(),
             phone=form.phone.data.strip(),
             organization=form.organization.data.strip() if form.organization.data else None,
             password_hash=bcrypt.hash(form.password.data),
-            agreed_terms=form.agree_terms.data
+            agreed_terms=form.agree_terms.data,
+            role=selected_role   # assign relationship directly
         )
+
         db.session.add(user)
         db.session.commit()
         flash("Account created successfully. Please sign in.", "success")
         return redirect(url_for("auth.login"))
+
     return render_template("auth/register.html", form=form)
 
-
+# -------------------------
+# LOGIN
+# -------------------------
 @bp.route("/login", methods=["GET", "POST"])
 @limiter.limit("10/minute")
 def login():
@@ -64,7 +76,6 @@ def login():
             login_user(user, remember=form.remember.data)
             flash("Welcome back.", "success")
 
-            # 🔹 Handle next parameter here
             next_page = request.args.get("next")
             if not next_page or urlparse(next_page).netloc != "":
                 next_page = url_for("dashboard.home")
@@ -74,17 +85,17 @@ def login():
 
     return render_template("auth/login.html", form=form)
 
-
+# -------------------------
+# TWO FACTOR AUTH
+# -------------------------
 @bp.route("/2fa", methods=["GET", "POST"])
 @login_required
 def two_factor():
     """Handle two-factor authentication (2FA) verification."""
-    # 2FA must be enabled
     if not current_user.otp_secret:
         flash("2FA not enabled for your account.", "warning")
         return redirect(url_for("dashboard.home"))
 
-    # Ensure there’s a pending 2FA session
     if "pending_user_id" not in request.environ:
         flash("2FA session expired. Please log in again.", "warning")
         return redirect(url_for("auth.login"))
@@ -93,19 +104,13 @@ def two_factor():
         flash("Invalid 2FA session. Please log in again.", "danger")
         return redirect(url_for("auth.login"))
 
-    # Prepare form
     form = TwoFactorForm()
-
     if form.validate_on_submit():
         totp = pyotp.TOTP(current_user.otp_secret)
         if totp.verify(form.token.data, valid_window=1):
-            # ✅ 2FA success
             flash("2FA verified.", "success")
-
-            # Clear pending session marker
             del request.environ["pending_user_id"]
 
-            # Handle `?next=` redirect safely
             next_page = request.args.get("next")
             if not next_page or urlparse(next_page).netloc != "":
                 next_page = url_for("dashboard.home")
@@ -115,7 +120,9 @@ def two_factor():
 
     return render_template("auth/two_factor.html", form=form)
 
-
+# -------------------------
+# LOGOUT
+# -------------------------
 @bp.route("/logout")
 @login_required
 def logout():
@@ -124,7 +131,10 @@ def logout():
     flash("Signed out.", "info")
     return redirect(url_for("main.index"))
 
-@bp.route("/change-password", methods=["GET","POST"])
+# -------------------------
+# CHANGE PASSWORD
+# -------------------------
+@bp.route("/change-password", methods=["GET", "POST"])
 @login_required
 @limiter.limit("5/minute")
 def change_password():
@@ -133,65 +143,64 @@ def change_password():
     if form.validate_on_submit():
         if not bcrypt.verify(form.current_password.data, current_user.password_hash):
             flash("Current password is incorrect.", "danger")
-            log_action("password_change_failed", {"reason":"bad_current_password"})
+            log_action("password_change_failed", {"reason": "bad_current_password"})
             return redirect(url_for("auth.change_password"))
 
         if current_app.config["REQUIRE_2FA_REAUTH"] and current_user.otp_secret:
             if not form.token.data:
                 flash("Enter your 2FA code to continue.", "warning")
-                log_action("password_change_failed",{"reason":"missing_2fa"})
+                log_action("password_change_failed", {"reason": "missing_2fa"})
                 return redirect(url_for("auth.change_password"))
             totp = pyotp.TOTP(current_user.otp_secret)
             if not totp.verify(form.token.data, valid_window=1):
                 flash("Invalid 2FA code.", "danger")
-                log_action("password_change_failed",{"reason":"bad_2fa"})
+                log_action("password_change_failed", {"reason": "bad_2fa"})
                 return redirect(url_for("auth.change_password"))
 
-        # Prevent reuse
         N = current_app.config["PASSWORD_HISTORY_COUNT"]
         recent = [current_user.password_hash] + [
             ph.password_hash for ph in PasswordHistory.query
-                .filter_by(user_id=current_user.id)
-                .order_by(desc(PasswordHistory.created_at))
-                .limit(N).all()
+            .filter_by(user_id=current_user.id)
+            .order_by(desc(PasswordHistory.created_at))
+            .limit(N).all()
         ]
         for old in recent:
             if bcrypt.verify(form.new_password.data, old):
                 flash(f"New password must not match your last {N} passwords.", "danger")
-                log_action("password_change_failed",{"reason":"password_reuse"})
+                log_action("password_change_failed", {"reason": "password_reuse"})
                 return redirect(url_for("auth.change_password"))
 
-        # Save history, update, prune
         db.session.add(PasswordHistory(user_id=current_user.id,
                                        password_hash=current_user.password_hash))
         current_user.password_hash = bcrypt.hash(form.new_password.data)
         db.session.commit()
 
         all_hist = PasswordHistory.query.filter_by(user_id=current_user.id) \
-                     .order_by(desc(PasswordHistory.created_at)).all()
+            .order_by(desc(PasswordHistory.created_at)).all()
         if len(all_hist) > N:
             for ph in all_hist[N:]:
                 db.session.delete(ph)
             db.session.commit()
 
-        log_action("password_change",{"user_id":current_user.id,
-                                     "two_factor_checked":bool(current_user.otp_secret)})
+        log_action("password_change", {"user_id": current_user.id,
+                                       "two_factor_checked": bool(current_user.otp_secret)})
         flash("Password updated successfully.", "success")
         return redirect(url_for("main.index"))
+
     return render_template("auth/change_password.html", form=form)
 
-
-
-@bp.route('/forgot_password', methods=['GET', 'POST'])
+# -------------------------
+# FORGOT PASSWORD
+# -------------------------
+@bp.route("/forgot_password", methods=["GET", "POST"])
 def forgot_password():
     """Handle password reset requests by sending a reset email if the user exists."""
     if current_user.is_authenticated:
-        return redirect(url_for('main.index'))
+        return redirect(url_for("main.index"))
     
     expiry = current_app.config.get("PASSWORD_RESET_TOKEN_EXPIRY")
     print("PASSWORD_RESET_TOKEN_EXPIRY:", expiry, type(expiry))
 
-    
     form = ResetPasswordRequestForm()
     if form.validate_on_submit():
         user = User.query.filter_by(email=form.email.data.lower()).first()
@@ -199,31 +208,36 @@ def forgot_password():
             send_password_reset_email(user)
         flash('Check your email for reset instructions.')
         return redirect(url_for('auth.login'))
+
     return render_template(
         'auth/forgot_password.html',
         title='Reset Password',
         form=form
     )
 
-@bp.route('/reset_password/<token>', methods=['GET', 'POST'])
+# -------------------------
+# RESET PASSWORD
+# -------------------------
+@bp.route("/reset_password/<token>", methods=["GET", "POST"])
 def reset_password(token):
     """Allow users to reset their password using a valid token."""
     if current_user.is_authenticated:
-        return redirect(url_for('main.index'))
+        return redirect(url_for("main.index"))
     
     user = User.verify_reset_password_token(token)
     if not user:
         flash('Invalid or expired token.')
         return redirect(url_for('auth.login'))
+
     form = ResetPasswordForm()
     if form.validate_on_submit():
         user.set_password(form.password.data)
         db.session.commit()
         flash('Your password has been reset. You can now sign in.')
         return redirect(url_for('auth.login'))
+
     return render_template(
         'auth/reset_password.html',
         title='Set New Password',
         form=form
     )
-    

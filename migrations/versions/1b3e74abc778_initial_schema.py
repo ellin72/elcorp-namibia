@@ -1,8 +1,8 @@
 """Initial schema
 
-Revision ID: 513945f9a90d
+Revision ID: 1b3e74abc778
 Revises: 
-Create Date: 2025-08-26 19:29:36.096743
+Create Date: 2025-08-28 14:40:56.955709
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '513945f9a90d'
+revision = '1b3e74abc778'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -50,6 +50,8 @@ def upgrade():
     sa.Column('wallet_address', sa.String(length=36), nullable=False),
     sa.Column('last_login', sa.DateTime(), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('role_id', sa.Integer(), nullable=False),
+    sa.ForeignKeyConstraint(['role_id'], ['role.id'], ),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('phone'),
     sa.UniqueConstraint('wallet_address')
@@ -88,13 +90,6 @@ def upgrade():
     sa.ForeignKeyConstraint(['to_user_id'], ['user.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_table('user_roles',
-    sa.Column('user_id', sa.Integer(), nullable=False),
-    sa.Column('role_id', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['role_id'], ['role.id'], ),
-    sa.ForeignKeyConstraint(['user_id'], ['user.id'], ),
-    sa.PrimaryKeyConstraint('user_id', 'role_id')
-    )
     op.create_table('vehicles',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=False),
@@ -129,7 +124,6 @@ def downgrade():
 
     op.drop_table('vin_record')
     op.drop_table('vehicles')
-    op.drop_table('user_roles')
     op.drop_table('transactions')
     with op.batch_alter_table('password_history', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_password_history_user_id'))

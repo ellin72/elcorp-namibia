@@ -1,4 +1,5 @@
-"""app/models.py
+"""
+app/models.py
 
 Database models for users, VIN records, audit logs, vehicles, transactions,
 and password-reset history with audit trails.
@@ -10,21 +11,13 @@ from datetime import datetime, timedelta
 from flask import current_app, request
 from flask_login import UserMixin
 from itsdangerous import URLSafeSerializer, BadData
-
 from werkzeug.security import generate_password_hash, check_password_hash
+from sqlalchemy import event
 
 from .extensions import db, login_manager
 
 # custom salt for password-reset tokens
 RESET_PASSWORD_SALT = "password-reset-salt"
-
-
-# association table for many-to-many User <→ Role
-user_roles = db.Table(
-    'user_roles',
-    db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
-    db.Column('role_id', db.Integer, db.ForeignKey('role.id'), primary_key=True)
-)
 
 
 class Role(db.Model):
@@ -34,6 +27,9 @@ class Role(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(64), unique=True, nullable=False)
     description = db.Column(db.String(255))
+
+    # One-to-many: one role has many users
+    users = db.relationship('User', back_populates='role', lazy='dynamic')
 
     def __repr__(self):
         return f"<Role {self.name}>"
@@ -58,15 +54,12 @@ class User(UserMixin, db.Model):
     last_login = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    roles = db.relationship(
-        'Role',
-        secondary=user_roles,
-        backref=db.backref('users', lazy='dynamic')
-    )
+    # Single role assignment (non-nullable)
+    role_id = db.Column(db.Integer, db.ForeignKey('role.id'), nullable=False)
+    role = db.relationship('Role', back_populates='users')
 
     def __repr__(self):
-        role_names = [r.name for r in self.roles] or ['None']
-        return f"<User {self.email} Roles: {', '.join(role_names)}>"
+        return f"<User {self.email} Role: {self.role.name if self.role else 'None'}>"
 
     def set_password(self, password: str):
         """Hash and set the user's password."""
@@ -78,38 +71,53 @@ class User(UserMixin, db.Model):
 
     def has_role(self, role_name: str) -> bool:
         """Check if the user has a given role."""
-        return any(r.name == role_name for r in self.roles)
+        return self.role and self.role.name == role_name
 
     def generate_wallet_address(self) -> str:
         """Generate a new UUID4 wallet address."""
         return str(uuid.uuid4())
+############################################################################################
 
     def get_reset_password_token(self, expires_sec: int = None) -> str:
         """
-        Create a URL-safe token for password reset containing:
-          - user_id
-          - exp  (expiration timestamp)
+        Return a URL-safe token with:
+          - user_id (int)
+          - iat     (issued-at timestamp)
+          - optional exp (expiry timestamp) if expires_sec passed
+        Raises RuntimeError if neither expires_sec nor config is a valid positive int.
         """
-        expires = expires_sec or current_app.config.get("PASSWORD_RESET_TOKEN_EXPIRY", 600)
-        if not isinstance(expires, int) or expires <= 0:
-            raise RuntimeError(f"Invalid TOKEN_EXPIRY: {expires!r}")
+        now_ts = int(datetime.utcnow().timestamp())
+
+        # Determine expiry
+        if expires_sec is not None:
+            if not isinstance(expires_sec, int) or expires_sec <= 0:
+                raise RuntimeError(f"Invalid TOKEN_EXPIRY: {expires_sec!r}")
+            exp_ts = now_ts + expires_sec
+        else:
+            cfg = current_app.config.get("PASSWORD_RESET_TOKEN_EXPIRY")
+            if not isinstance(cfg, int) or cfg <= 0:
+                raise RuntimeError(f"Invalid TOKEN_EXPIRY: {cfg!r}")
+            exp_ts = None
+
+        # Build payload
+        payload = {"user_id": self.id, "iat": now_ts}
+        if exp_ts is not None:
+            payload["exp"] = exp_ts
 
         serializer = URLSafeSerializer(
             secret_key=current_app.config["SECRET_KEY"],
             salt=RESET_PASSWORD_SALT
         )
-        exp_time = datetime.utcnow() + timedelta(seconds=expires)
-        payload = {"user_id": self.id, "exp": int(exp_time.timestamp())}
         return serializer.dumps(payload)
+
 
     @staticmethod
     def verify_reset_password_token(token: str):
         """
-        Validate a password-reset token:
-          - rejects malformed or bad signatures
-          - rejects expired tokens
-          - logs each attempt in PasswordResetAudit
-        Returns the User on success, or None on failure.
+        Verify a password-reset token by:
+          1. checking its signature
+          2. reading payload["exp"] if set, else using payload["iat"] + config
+        Logs the attempt and returns the User on success, or None on failure.
         """
         serializer = URLSafeSerializer(
             secret_key=current_app.config["SECRET_KEY"],
@@ -120,15 +128,32 @@ class User(UserMixin, db.Model):
         succeeded = False
         user_id = None
         reason = "unknown"
+        now_ts = int(datetime.utcnow().timestamp())
 
         try:
             data = serializer.loads(token)
             user_id = data.get("user_id")
-            if data.get("exp", 0) < int(datetime.utcnow().timestamp()):
-                reason = "expired"
+            iat = data.get("iat", 0)
+            exp_ts = data.get("exp", None)
+
+            if exp_ts is not None:
+                # explicit expiry embedded
+                if now_ts > exp_ts:
+                    reason = "expired"
+                else:
+                    succeeded = True
+                    reason = "valid"
             else:
-                succeeded = True
-                reason = "valid"
+                # fallback to config expiry
+                cfg = current_app.config.get("PASSWORD_RESET_TOKEN_EXPIRY")
+                if not isinstance(cfg, int) or cfg <= 0:
+                    reason = "invalid_config"
+                elif (now_ts - iat) > cfg:
+                    reason = "expired"
+                else:
+                    succeeded = True
+                    reason = "valid"
+
         except BadData:
             reason = "invalid_token"
 
@@ -145,21 +170,38 @@ class User(UserMixin, db.Model):
 
         if succeeded:
             return User.query.get(user_id)
-        logger.info(f"Password reset failed: user_id={user_id} reason={reason} ip={request.remote_addr}")
+
+        logger.info(
+            f"Password reset failed: user_id={user_id} "
+            f"reason={reason} ip={request.remote_addr}"
+        )
         return None
+    
+######################################################################################################
+
+@event.listens_for(User, "before_insert")
+def assign_default_role(mapper, connection, target):
+    if not target.role:
+        # use the connection to run a SELECT without touching db.session
+        role_id = connection.execute(
+            Role.__table__.select().where(Role.name == "user")
+        ).scalar()
+        if role_id:
+            target.role_id = role_id
+        else:
+            # create a default role in a separate, controlled setup step
+            raise RuntimeError("Default role 'user' missing in DB — seed roles first")
+
 
 
 @db.event.listens_for(User, "before_insert")
 def _assign_wallet_address(mapper, connection, target):
-    """
-    Automatically assign a UUID wallet address before inserting a new user.
-    """
+    """Automatically assign a UUID wallet address before inserting a new user."""
     if not target.wallet_address:
         target.wallet_address = target.generate_wallet_address()
 
 
 class VinRecord(db.Model):
-    """Vehicle Identification Number records."""
     __tablename__ = "vin_record"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -170,7 +212,6 @@ class VinRecord(db.Model):
 
 
 class AuditLog(db.Model):
-    """General-purpose audit log of user actions."""
     __tablename__ = "audit_log"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -181,7 +222,6 @@ class AuditLog(db.Model):
 
 
 class PasswordHistory(db.Model):
-    """Keeps historical password hashes to prevent reuse."""
     __tablename__ = "password_history"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -191,7 +231,6 @@ class PasswordHistory(db.Model):
 
 
 class PasswordResetAudit(db.Model):
-    """Logs each password-reset attempt and outcome."""
     __tablename__ = "password_reset_audit"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -204,7 +243,6 @@ class PasswordResetAudit(db.Model):
 
 
 class Vehicle(db.Model):
-    """User-owned vehicle records."""
     __tablename__ = "vehicles"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -219,7 +257,6 @@ class Vehicle(db.Model):
 
 
 class Transaction(db.Model):
-    """Elcoin transfer transactions between users."""
     __tablename__ = "transactions"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -234,5 +271,4 @@ class Transaction(db.Model):
 
 @login_manager.user_loader
 def load_user(user_id):
-    """Flask-Login user loader callback."""
     return User.query.get(int(user_id))
