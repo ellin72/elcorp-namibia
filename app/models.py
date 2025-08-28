@@ -181,6 +181,7 @@ class User(UserMixin, db.Model):
 
 @event.listens_for(User, "before_insert")
 def assign_default_role(mapper, connection, target):
+    """Automatically assign the 'user' role if none is set before inserting a new user."""
     if not target.role:
         # use the connection to run a SELECT without touching db.session
         role_id = connection.execute(
@@ -202,6 +203,7 @@ def _assign_wallet_address(mapper, connection, target):
 
 
 class VinRecord(db.Model):
+    """Model for storing VIN records."""
     __tablename__ = "vin_record"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -212,6 +214,7 @@ class VinRecord(db.Model):
 
 
 class AuditLog(db.Model):
+    """Model for logging user actions and system events."""
     __tablename__ = "audit_log"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -222,6 +225,7 @@ class AuditLog(db.Model):
 
 
 class PasswordHistory(db.Model):
+    """Model for storing historical password hashes."""
     __tablename__ = "password_history"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -231,6 +235,7 @@ class PasswordHistory(db.Model):
 
 
 class PasswordResetAudit(db.Model):
+    """Model for auditing password reset attempts."""
     __tablename__ = "password_reset_audit"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -243,6 +248,7 @@ class PasswordResetAudit(db.Model):
 
 
 class Vehicle(db.Model):
+    """Model for storing vehicle information."""
     __tablename__ = "vehicles"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -257,6 +263,7 @@ class Vehicle(db.Model):
 
 
 class Transaction(db.Model):
+    """Model for recording transactions between users."""
     __tablename__ = "transactions"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -271,4 +278,5 @@ class Transaction(db.Model):
 
 @login_manager.user_loader
 def load_user(user_id):
+    """Flask-Login user loader callback."""
     return User.query.get(int(user_id))
