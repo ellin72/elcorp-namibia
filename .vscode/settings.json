@@ -4,6 +4,7 @@
         "autouse",
         "backref",
         "colorama",
+        "creds",
         "dnspython",
         "dotenv",
         "elcar",
