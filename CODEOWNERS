@@ -1,0 +1,8 @@
+
+# Specify code owners for the repository
+
+# Format: <pattern> <owner1> <owner2>
+
+/app/ @ellin72
+/migrations/ @ellin72
+/.github/workflows/ @ellin72

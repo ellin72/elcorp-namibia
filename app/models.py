@@ -276,7 +276,25 @@ class Transaction(db.Model):
     receiver = db.relationship("User", foreign_keys=[to_user_id])
 
 
-@login_manager.user_loader
-def load_user(user_id):
-    """Flask-Login user loader callback."""
-    return User.query.get(int(user_id))
+class UserProfile(db.Model):
+    """Extended user profile information."""
+    __tablename__ = "user_profile"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, unique=True, index=True)
+    bio = db.Column(db.String(500), nullable=True)
+    profile_picture_url = db.Column(db.String(255), nullable=True)
+    date_of_birth = db.Column(db.Date, nullable=True)
+    country = db.Column(db.String(100), nullable=True)
+    city = db.Column(db.String(100), nullable=True)
+    phone_verified = db.Column(db.Boolean, default=False)
+    email_verified = db.Column(db.Boolean, default=False)
+    last_updated = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship("User", backref="profile", uselist=False)
+
+    def __repr__(self):
+        return f"<UserProfile {self.user_id}>"
+
+

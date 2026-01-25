@@ -107,3 +107,11 @@ def test_verify_tampered_token():
     """Should return None for tampered token."""
     bad = "not-a-real-token"
     assert User.verify_reset_password_token(bad) is None
+
+
+def test_models_importable():
+    import importlib
+    mod = importlib.import_module("app.models")
+    assert hasattr(mod, "AuditLog")
+    assert hasattr(mod, "VinRecord")
+    assert hasattr(mod, "PasswordHistory")

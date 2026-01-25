@@ -1,0 +1,43 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: "latest"
+
+      - name: Configure kubeconfig
+        env:
+          KUBE_CONFIG_DATA: ${{ secrets.KUBE_CONFIG_DATA }}
+        run: |
+          echo "$KUBE_CONFIG_DATA" | base64 --decode > kubeconfig
+          export KUBECONFIG=$PWD/kubeconfig
+          kubectl version --client
+
+      - name: Deploy to cluster (update image)
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/elcorp-namibia:${{ github.sha }}
+        run: |
+          kubectl set image deployment/elcorp-web elcorp-web=$IMAGE --record
+          kubectl rollout status deployment/elcorp-web --timeout=2m
+
+      - name: Run DB migrations (alembic)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          kubectl run --rm -i migrate --image=ghcr.io/${{ github.repository_owner }}/elcorp-namibia:${{ github.sha }} -- bash -c "alembic upgrade head"
+      - name: Clean up kubeconfig
+        run: |
+          rm -f kubeconfig
+          unset KUBECONFIG
