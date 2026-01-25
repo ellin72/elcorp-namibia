@@ -180,3 +180,24 @@ def push_request_context(app):
     """So current_app, url_for, request, etc. all work."""
     with app.test_request_context():
         yield
+
+
+
+# Minimal conftest that tries to import application factory if present.
+# Adjust this to match your repo's app factory name (create_app, make_app, etc.)
+try:
+    from app import create_app
+except Exception:
+    create_app = None
+
+
+@pytest.fixture
+def app():
+    if create_app:
+        app = create_app({'TESTING': True})
+        yield app
+    else:
+        pytest.skip("No application factory found (create_app); adapt tests.")
+
+    db.session.remove()
+    db.drop_all()
