@@ -17,6 +17,7 @@ A secure, scalable Flask platform for vehicle identity management and tokenized 
 - ✅ User profile management (CRUD)
 - ✅ Secure password reset functionality
 - ✅ Request rate limiting and CSRF protection
+- ✅ **Service Request Workflow System** – Complete submission, review, approval workflow with email notifications
 
 ## System Requirements
 
@@ -607,18 +608,135 @@ For more detailed information, see:
 - **[IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md)** - Technical implementation details
 - **[PROJECT_COMPLETION_CHECKLIST.md](PROJECT_COMPLETION_CHECKLIST.md)** - Feature verification checklist
 - **[DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md)** - Complete documentation navigation
+- **[docs/SERVICE_REQUEST_SYSTEM.md](docs/SERVICE_REQUEST_SYSTEM.md)** - Service Request Workflow System documentation
+- **[docs/SERVICE_REQUEST_QUICK_START.md](docs/SERVICE_REQUEST_QUICK_START.md)** - Service Request quick start guide
+- **[docs/DASHBOARD_GUIDE.md](docs/DASHBOARD_GUIDE.md)** - Dashboards and Analytics documentation
+
+## Service Request Workflow System
+
+A complete workflow management system for handling user requests through submission, review, approval, and completion stages:
+
+### Key Features
+
+- User request submission with draft save capability
+- Role-based workflow transitions (User → Staff → Admin)
+- Automated email notifications for all status changes
+- Complete audit trail with ServiceRequestHistory tracking
+- Comprehensive REST API with 10+ endpoints
+- Full RBAC permission enforcement
+
+### Quick Links
+
+- **[Service Request System Documentation](docs/SERVICE_REQUEST_SYSTEM.md)** - Complete API docs and workflow rules
+- **[Service Request Quick Start](docs/SERVICE_REQUEST_QUICK_START.md)** - Setup guide with curl examples
+- **[Test Suite](tests/test_service_requests.py)** - 50+ test cases covering all scenarios
+
+### Workflow States
+
+```
+Draft → Submitted → In Review → Approved/Rejected → Completed
+```
+
+### Roles
+
+- **User**: Create and submit requests
+- **Staff**: Review and move requests to in_review
+- **Admin**: Approve/reject/complete requests and assign to staff
+
+## Dashboards & Analytics
+
+Comprehensive analytics and monitoring dashboards with role-based views, advanced filtering, and export capabilities.
+
+### Features
+
+- **Admin Dashboard** - System-wide metrics, trends, staff workload, SLA tracking
+- **Staff Dashboard** - Personal workload, assigned requests, performance metrics
+- **Filtered Requests** - Advanced filtering with multiple criteria (status, priority, category, date range)
+- **CSV/PDF Exports** - Generate reports for requests, performance, and analytics
+- **Real-time Analytics** - 15+ aggregation functions (status counts, trends, averages)
+- **Performance Optimized** - Database indices on frequently-queried columns
+
+### Quick Start
+
+```bash
+# Admin summary dashboard
+curl -H "Authorization: Bearer <token>" \
+  http://localhost:5000/api/dashboard/admin/summary
+
+# Staff workload (last 30 days)
+curl -H "Authorization: Bearer <token>" \
+  http://localhost:5000/api/dashboard/admin/workload?days=30
+
+# Filtered requests (open, high priority)
+curl -H "Authorization: Bearer <token>" \
+  "http://localhost:5000/api/dashboard/requests/filtered?status=open&priority=high"
+
+# Export to CSV
+curl -H "Authorization: Bearer <token>" \
+  "http://localhost:5000/api/dashboard/export/requests?format=csv" -o requests.csv
+```
+
+### Dashboard Endpoints
+
+**Admin Only:**
+
+- `GET /api/dashboard/admin/summary` - System metrics and overview
+- `GET /api/dashboard/admin/trends` - Historical trends (requests created/completed)
+- `GET /api/dashboard/admin/workload` - Staff workload distribution
+- `GET /api/dashboard/admin/sla-breaches` - Overdue requests tracking
+
+**Staff:**
+
+- `GET /api/dashboard/staff/summary` - Personal summary
+- `GET /api/dashboard/staff/my-workload` - Assigned requests with filtering
+- `GET /api/dashboard/staff/performance` - Completion metrics and trends
+
+**Shared:**
+
+- `GET /api/dashboard/requests/filtered` - Advanced filtering (role-scoped)
+- `GET /api/dashboard/export/requests` - CSV/PDF export
+
+### Filtering Options
+
+```
+status    - open, in_progress, completed
+priority  - high, medium, low
+category  - hardware, software, network, other
+date_from - YYYY-MM-DD
+date_to   - YYYY-MM-DD
+assigned_to - Staff user ID (admin only)
+sort_by   - created, updated, priority, status
+sort_order - asc, desc
+page      - Page number (default 1)
+per_page  - Items per page (default 10, max 100)
+```
+
+### Complete Documentation
+
+See **[docs/DASHBOARD_GUIDE.md](docs/DASHBOARD_GUIDE.md)** for:
+
+- Detailed endpoint reference with all parameters
+- Filter combinations and examples
+- RBAC enforcement rules
+- Export functionality guide
+- Performance optimization tips
+- Integration examples (HTML, React)
+- Troubleshooting
 
 ## Project Statistics
 
 | Metric | Value |
 |--------|-------|
-| REST API Endpoints | 14 |
-| Database Models | 9 |
-| Test Cases | 35+ |
-| Lines of API Code | 533 |
-| Lines of Test Code | 919 |
+| REST API Endpoints | 32+ (14 original + 10 service request + 8 dashboard) |
+| Dashboard Endpoints | 8 (4 admin + 3 staff + 1 shared) |
+| Analytics Functions | 15+ (aggregations, trends, distribution) |
+| Database Models | 11 (added ServiceRequest, ServiceRequestHistory) |
+| Database Indices | 5 (status, priority, created_at, created_by, assigned_to) |
+| Test Cases | 135+ (35+ original + 50+ service request + 50+ dashboard) |
+| Lines of API Code | 1,800+ |
+| Lines of Test Code | 2,000+ |
+| Lines of Documentation | 4,500+ |
 | RBAC Decorators | 6+ |
-| Documentation Sections | 50+ |
 
 ## License
 

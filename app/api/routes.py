@@ -534,3 +534,676 @@ def update_current_user_profile():
     Update current user's profile information.
     """
     return update_profile(current_user.id)
+
+
+# ============================================================================
+# Service Request Endpoints
+# ============================================================================
+
+@bp.route("/service-requests", methods=["POST"])
+@login_required
+def create_service_request():
+    """
+    Create a new service request (User).
+    Only authenticated users can create service requests.
+    
+    Request body:
+        - title: str (required)
+        - description: str (required)
+        - category: str (required) - compliance, support, inquiry, complaint, other
+        - priority: str (optional) - low, normal, high, urgent (default: normal)
+    """
+    try:
+        from app.models import ServiceRequest
+        
+        if not validate_request_json(request):
+            return api_error("Invalid request format", 400)
+        
+        data = request.get_json()
+        
+        # Validate required fields
+        if not data.get('title') or not data.get('description') or not data.get('category'):
+            return api_error("Missing required fields: title, description, category", 400)
+        
+        # Validate category
+        if data['category'] not in ServiceRequest.VALID_CATEGORIES:
+            return api_error(f"Invalid category. Must be one of: {', '.join(ServiceRequest.VALID_CATEGORIES)}", 400)
+        
+        # Validate priority if provided
+        priority = data.get('priority', ServiceRequest.PRIORITY_NORMAL)
+        if priority not in ServiceRequest.VALID_PRIORITIES:
+            return api_error(f"Invalid priority. Must be one of: {', '.join(ServiceRequest.VALID_PRIORITIES)}", 400)
+        
+        # Create new service request
+        service_request = ServiceRequest(
+            title=data['title'],
+            description=data['description'],
+            category=data['category'],
+            priority=priority,
+            created_by=current_user.id,
+            status=ServiceRequest.STATUS_DRAFT
+        )
+        
+        db.session.add(service_request)
+        db.session.commit()
+        
+        logger.info(f"Service request {service_request.id} created by user {current_user.id}")
+        
+        return api_response(
+            data={
+                "id": service_request.id,
+                "title": service_request.title,
+                "description": service_request.description,
+                "category": service_request.category,
+                "priority": service_request.priority,
+                "status": service_request.status,
+                "created_by": service_request.created_by,
+                "assigned_to": service_request.assigned_to,
+                "created_at": service_request.created_at.isoformat(),
+                "updated_at": service_request.updated_at.isoformat(),
+            },
+            message="Service request created successfully",
+            status_code=201
+        )
+    
+    except Exception as e:
+        logger.error(f"Error creating service request: {str(e)}")
+        return api_error("Failed to create service request", 500)
+
+
+@bp.route("/service-requests/mine", methods=["GET"])
+@login_required
+def get_user_service_requests():
+    """
+    Get all service requests created by the current user (User).
+    
+    Query parameters:
+        - page: Page number (default 1)
+        - per_page: Items per page (default 20, max 100)
+        - status: Filter by status
+        - priority: Filter by priority
+    """
+    try:
+        from app.models import ServiceRequest
+        
+        page, per_page = get_pagination_params(
+            default_per_page=current_app.config.get("API_ITEMS_PER_PAGE", 20)
+        )
+        
+        query = ServiceRequest.query.filter_by(created_by=current_user.id)
+        
+        # Status filter
+        status_param = request.args.get('status', '').strip()
+        if status_param and status_param in ServiceRequest.VALID_STATUSES:
+            query = query.filter_by(status=status_param)
+        
+        # Priority filter
+        priority_param = request.args.get('priority', '').strip()
+        if priority_param and priority_param in ServiceRequest.VALID_PRIORITIES:
+            query = query.filter_by(priority=priority_param)
+        
+        # Order by created_at descending
+        query = query.order_by(ServiceRequest.created_at.desc())
+        
+        requests, pagination_info = paginate_query(query, page, per_page)
+        
+        requests_data = [
+            {
+                "id": sr.id,
+                "title": sr.title,
+                "description": sr.description,
+                "category": sr.category,
+                "priority": sr.priority,
+                "status": sr.status,
+                "assigned_to": sr.assigned_to,
+                "created_at": sr.created_at.isoformat(),
+                "updated_at": sr.updated_at.isoformat(),
+            }
+            for sr in requests
+        ]
+        
+        return api_response(data=requests_data, paginate=pagination_info)
+    
+    except Exception as e:
+        logger.error(f"Error retrieving user service requests: {str(e)}")
+        return api_error("Failed to retrieve service requests", 500)
+
+
+@bp.route("/service-requests/<request_id>", methods=["GET"])
+@login_required
+def get_service_request(request_id):
+    """
+    Get a specific service request (User/Staff/Admin).
+    User can only access their own requests unless they are staff/admin.
+    """
+    try:
+        from app.models import ServiceRequest
+        
+        service_request = ServiceRequest.query.get(request_id)
+        
+        if not service_request:
+            return api_error("Service request not found", 404)
+        
+        # Check access permissions
+        is_admin = current_user.role and current_user.role.name == "admin"
+        is_staff = current_user.role and current_user.role.name == "staff"
+        is_creator = service_request.created_by == current_user.id
+        is_assignee = service_request.assigned_to == current_user.id
+        
+        if not (is_creator or is_assignee or is_staff or is_admin):
+            logger.warning(f"Access denied for user {current_user.id} to service request {request_id}")
+            return api_error("You do not have permission to access this request", 403)
+        
+        return api_response(data={
+            "id": service_request.id,
+            "title": service_request.title,
+            "description": service_request.description,
+            "category": service_request.category,
+            "priority": service_request.priority,
+            "status": service_request.status,
+            "created_by": service_request.created_by,
+            "creator_name": service_request.creator.full_name if service_request.creator else None,
+            "assigned_to": service_request.assigned_to,
+            "assignee_name": service_request.assignee.full_name if service_request.assignee else None,
+            "created_at": service_request.created_at.isoformat(),
+            "updated_at": service_request.updated_at.isoformat(),
+        })
+    
+    except Exception as e:
+        logger.error(f"Error retrieving service request: {str(e)}")
+        return api_error("Failed to retrieve service request", 500)
+
+
+@bp.route("/service-requests/<request_id>", methods=["PUT"])
+@login_required
+def update_service_request(request_id):
+    """
+    Update a service request (User can only edit draft requests).
+    
+    Request body:
+        - title: str (optional)
+        - description: str (optional)
+        - category: str (optional)
+        - priority: str (optional)
+    """
+    try:
+        from app.models import ServiceRequest
+        
+        service_request = ServiceRequest.query.get(request_id)
+        
+        if not service_request:
+            return api_error("Service request not found", 404)
+        
+        # Only creator can edit draft requests
+        if service_request.created_by != current_user.id:
+            logger.warning(f"Access denied for user {current_user.id} to edit request {request_id}")
+            return api_error("You do not have permission to edit this request", 403)
+        
+        if not service_request.can_edit(current_user):
+            return api_error("Can only edit draft service requests", 400)
+        
+        if not validate_request_json(request):
+            return api_error("Invalid request format", 400)
+        
+        data = request.get_json()
+        
+        # Update fields
+        if 'title' in data:
+            service_request.title = data['title']
+        if 'description' in data:
+            service_request.description = data['description']
+        if 'category' in data:
+            if data['category'] not in ServiceRequest.VALID_CATEGORIES:
+                return api_error(f"Invalid category. Must be one of: {', '.join(ServiceRequest.VALID_CATEGORIES)}", 400)
+            service_request.category = data['category']
+        if 'priority' in data:
+            if data['priority'] not in ServiceRequest.VALID_PRIORITIES:
+                return api_error(f"Invalid priority. Must be one of: {', '.join(ServiceRequest.VALID_PRIORITIES)}", 400)
+            service_request.priority = data['priority']
+        
+        db.session.commit()
+        logger.info(f"Service request {request_id} updated by user {current_user.id}")
+        
+        return api_response(data={
+            "id": service_request.id,
+            "title": service_request.title,
+            "description": service_request.description,
+            "category": service_request.category,
+            "priority": service_request.priority,
+            "status": service_request.status,
+            "created_at": service_request.created_at.isoformat(),
+            "updated_at": service_request.updated_at.isoformat(),
+        }, message="Service request updated successfully")
+    
+    except Exception as e:
+        logger.error(f"Error updating service request: {str(e)}")
+        return api_error("Failed to update service request", 500)
+
+
+@bp.route("/service-requests/<request_id>/submit", methods=["POST"])
+@login_required
+def submit_service_request(request_id):
+    """
+    Submit a draft service request (User).
+    Only creator can submit their draft requests.
+    Triggers email notification.
+    """
+    try:
+        from app.models import ServiceRequest, ServiceRequestHistory
+        from app.audit import log_action
+        from app.email_service import send_service_request_submitted_email
+        
+        service_request = ServiceRequest.query.get(request_id)
+        
+        if not service_request:
+            return api_error("Service request not found", 404)
+        
+        # Only creator can submit
+        if service_request.created_by != current_user.id:
+            logger.warning(f"Access denied for user {current_user.id} to submit request {request_id}")
+            return api_error("You do not have permission to submit this request", 403)
+        
+        if not service_request.can_submit(current_user):
+            return api_error("Can only submit draft service requests", 400)
+        
+        # Record history
+        old_status = service_request.status
+        service_request.status = ServiceRequest.STATUS_SUBMITTED
+        
+        history = ServiceRequestHistory(
+            service_request_id=service_request.id,
+            action="submitted",
+            old_status=old_status,
+            new_status=service_request.status,
+            changed_by=current_user.id,
+            details={"submitted_at": datetime.utcnow().isoformat()}
+        )
+        
+        db.session.add(history)
+        db.session.commit()
+        
+        # Log action
+        log_action(
+            "service_request_submitted",
+            {
+                "service_request_id": service_request.id,
+                "user_id": current_user.id
+            }
+        )
+        
+        logger.info(f"Service request {request_id} submitted by user {current_user.id}")
+        
+        # Send notification email
+        try:
+            send_service_request_submitted_email(service_request)
+        except Exception as e:
+            logger.error(f"Failed to send submission email: {str(e)}")
+        
+        return api_response(data={
+            "id": service_request.id,
+            "status": service_request.status,
+            "updated_at": service_request.updated_at.isoformat(),
+        }, message="Service request submitted successfully")
+    
+    except Exception as e:
+        logger.error(f"Error submitting service request: {str(e)}")
+        return api_error("Failed to submit service request", 500)
+
+
+@bp.route("/service-requests/assigned", methods=["GET"])
+@login_required
+@require_role('staff', 'admin')
+def get_assigned_service_requests():
+    """
+    Get service requests assigned to the current staff member (Staff/Admin).
+    
+    Query parameters:
+        - page: Page number (default 1)
+        - per_page: Items per page (default 20, max 100)
+        - status: Filter by status
+    """
+    try:
+        from app.models import ServiceRequest
+        
+        page, per_page = get_pagination_params(
+            default_per_page=current_app.config.get("API_ITEMS_PER_PAGE", 20)
+        )
+        
+        query = ServiceRequest.query.filter_by(assigned_to=current_user.id)
+        
+        # Status filter
+        status_param = request.args.get('status', '').strip()
+        if status_param and status_param in ServiceRequest.VALID_STATUSES:
+            query = query.filter_by(status=status_param)
+        
+        # Order by created_at descending
+        query = query.order_by(ServiceRequest.created_at.desc())
+        
+        requests, pagination_info = paginate_query(query, page, per_page)
+        
+        requests_data = [
+            {
+                "id": sr.id,
+                "title": sr.title,
+                "description": sr.description,
+                "category": sr.category,
+                "priority": sr.priority,
+                "status": sr.status,
+                "created_by": sr.created_by,
+                "creator_name": sr.creator.full_name if sr.creator else None,
+                "created_at": sr.created_at.isoformat(),
+                "updated_at": sr.updated_at.isoformat(),
+            }
+            for sr in requests
+        ]
+        
+        return api_response(data=requests_data, paginate=pagination_info)
+    
+    except Exception as e:
+        logger.error(f"Error retrieving assigned service requests: {str(e)}")
+        return api_error("Failed to retrieve assigned requests", 500)
+
+
+@bp.route("/service-requests/<request_id>/status", methods=["PATCH"])
+@login_required
+@require_role('staff', 'admin')
+def update_service_request_status(request_id):
+    """
+    Update service request status (Staff/Admin).
+    - Staff can move to in_review
+    - Admin can approve/reject/complete
+    
+    Request body:
+        - status: str (required) - in_review, approved, rejected, completed
+        - notes: str (optional) - additional notes
+    """
+    try:
+        from app.models import ServiceRequest, ServiceRequestHistory
+        from app.audit import log_action
+        from app.email_service import send_service_request_status_email
+        
+        service_request = ServiceRequest.query.get(request_id)
+        
+        if not service_request:
+            return api_error("Service request not found", 404)
+        
+        if not validate_request_json(request):
+            return api_error("Invalid request format", 400)
+        
+        data = request.get_json()
+        new_status = data.get('status', '').strip()
+        notes = data.get('notes', '').strip()
+        
+        if not new_status or new_status not in ServiceRequest.VALID_STATUSES:
+            return api_error(f"Invalid status. Must be one of: {', '.join(ServiceRequest.VALID_STATUSES)}", 400)
+        
+        # Check permissions based on role
+        is_admin = current_user.role and current_user.role.name == "admin"
+        is_staff = current_user.role and current_user.role.name == "staff"
+        
+        if new_status == ServiceRequest.STATUS_IN_REVIEW:
+            if not is_staff:
+                return api_error("Only staff can move requests to in_review", 403)
+            if service_request.status != ServiceRequest.STATUS_SUBMITTED:
+                return api_error("Request must be in submitted status to move to in_review", 400)
+        
+        elif new_status in [ServiceRequest.STATUS_APPROVED, ServiceRequest.STATUS_REJECTED]:
+            if not is_admin:
+                return api_error("Only admin can approve or reject requests", 403)
+            if service_request.status != ServiceRequest.STATUS_IN_REVIEW:
+                return api_error("Request must be in in_review status to approve or reject", 400)
+        
+        elif new_status == ServiceRequest.STATUS_COMPLETED:
+            if not is_admin:
+                return api_error("Only admin can mark requests as completed", 403)
+            if service_request.status not in [ServiceRequest.STATUS_APPROVED, ServiceRequest.STATUS_COMPLETED]:
+                return api_error("Request must be approved before completing", 400)
+        
+        # Update status
+        old_status = service_request.status
+        service_request.status = new_status
+        
+        # Record history
+        history = ServiceRequestHistory(
+            service_request_id=service_request.id,
+            action="status_changed",
+            old_status=old_status,
+            new_status=new_status,
+            changed_by=current_user.id,
+            details={
+                "changed_at": datetime.utcnow().isoformat(),
+                "notes": notes if notes else None
+            }
+        )
+        
+        db.session.add(history)
+        db.session.commit()
+        
+        # Log action
+        log_action(
+            "service_request_status_changed",
+            {
+                "service_request_id": service_request.id,
+                "old_status": old_status,
+                "new_status": new_status,
+                "changed_by": current_user.id
+            }
+        )
+        
+        logger.info(f"Service request {request_id} status changed from {old_status} to {new_status} by user {current_user.id}")
+        
+        # Send notification emails
+        try:
+            send_service_request_status_email(service_request, old_status, new_status, notes)
+        except Exception as e:
+            logger.error(f"Failed to send status email: {str(e)}")
+        
+        return api_response(data={
+            "id": service_request.id,
+            "status": service_request.status,
+            "updated_at": service_request.updated_at.isoformat(),
+        }, message="Service request status updated successfully")
+    
+    except Exception as e:
+        logger.error(f"Error updating service request status: {str(e)}")
+        return api_error("Failed to update service request status", 500)
+
+
+@bp.route("/service-requests", methods=["GET"])
+@login_required
+@require_admin
+def get_all_service_requests():
+    """
+    Get all service requests (Admin only).
+    
+    Query parameters:
+        - page: Page number (default 1)
+        - per_page: Items per page (default 20, max 100)
+        - status: Filter by status
+        - priority: Filter by priority
+        - category: Filter by category
+    """
+    try:
+        from app.models import ServiceRequest
+        
+        page, per_page = get_pagination_params(
+            default_per_page=current_app.config.get("API_ITEMS_PER_PAGE", 20)
+        )
+        
+        query = ServiceRequest.query
+        
+        # Status filter
+        status_param = request.args.get('status', '').strip()
+        if status_param and status_param in ServiceRequest.VALID_STATUSES:
+            query = query.filter_by(status=status_param)
+        
+        # Priority filter
+        priority_param = request.args.get('priority', '').strip()
+        if priority_param and priority_param in ServiceRequest.VALID_PRIORITIES:
+            query = query.filter_by(priority=priority_param)
+        
+        # Category filter
+        category_param = request.args.get('category', '').strip()
+        if category_param and category_param in ServiceRequest.VALID_CATEGORIES:
+            query = query.filter_by(category=category_param)
+        
+        # Order by created_at descending
+        query = query.order_by(ServiceRequest.created_at.desc())
+        
+        requests, pagination_info = paginate_query(query, page, per_page)
+        
+        requests_data = [
+            {
+                "id": sr.id,
+                "title": sr.title,
+                "description": sr.description,
+                "category": sr.category,
+                "priority": sr.priority,
+                "status": sr.status,
+                "created_by": sr.created_by,
+                "creator_name": sr.creator.full_name if sr.creator else None,
+                "assigned_to": sr.assigned_to,
+                "assignee_name": sr.assignee.full_name if sr.assignee else None,
+                "created_at": sr.created_at.isoformat(),
+                "updated_at": sr.updated_at.isoformat(),
+            }
+            for sr in requests
+        ]
+        
+        return api_response(data=requests_data, paginate=pagination_info)
+    
+    except Exception as e:
+        logger.error(f"Error retrieving all service requests: {str(e)}")
+        return api_error("Failed to retrieve service requests", 500)
+
+
+@bp.route("/service-requests/<request_id>/assign", methods=["POST"])
+@login_required
+@require_admin
+def assign_service_request(request_id):
+    """
+    Assign a service request to a staff member (Admin only).
+    
+    Request body:
+        - assigned_to: int (required) - user_id of staff member
+    """
+    try:
+        from app.models import ServiceRequest, ServiceRequestHistory
+        from app.audit import log_action
+        from app.email_service import send_service_request_assigned_email
+        
+        service_request = ServiceRequest.query.get(request_id)
+        
+        if not service_request:
+            return api_error("Service request not found", 404)
+        
+        if not validate_request_json(request):
+            return api_error("Invalid request format", 400)
+        
+        data = request.get_json()
+        assigned_to_id = data.get('assigned_to')
+        
+        if not assigned_to_id:
+            return api_error("Missing required field: assigned_to", 400)
+        
+        # Get the staff member
+        staff_member = User.query.get(assigned_to_id)
+        
+        if not staff_member:
+            return api_error("Staff member not found", 404)
+        
+        if not staff_member.role or staff_member.role.name != "staff":
+            return api_error("Target user must have staff role", 400)
+        
+        # Assign
+        old_assigned_to = service_request.assigned_to
+        service_request.assigned_to = assigned_to_id
+        
+        # Record history
+        history = ServiceRequestHistory(
+            service_request_id=service_request.id,
+            action="assigned",
+            old_status=service_request.status,
+            new_status=service_request.status,
+            changed_by=current_user.id,
+            details={
+                "assigned_to": assigned_to_id,
+                "assigned_from": old_assigned_to,
+                "assigned_at": datetime.utcnow().isoformat()
+            }
+        )
+        
+        db.session.add(history)
+        db.session.commit()
+        
+        # Log action
+        log_action(
+            "service_request_assigned",
+            {
+                "service_request_id": service_request.id,
+                "assigned_to": assigned_to_id,
+                "assigned_by": current_user.id
+            }
+        )
+        
+        logger.info(f"Service request {request_id} assigned to user {assigned_to_id} by admin {current_user.id}")
+        
+        # Send notification email
+        try:
+            send_service_request_assigned_email(service_request, staff_member)
+        except Exception as e:
+            logger.error(f"Failed to send assignment email: {str(e)}")
+        
+        return api_response(data={
+            "id": service_request.id,
+            "assigned_to": service_request.assigned_to,
+            "assignee_name": staff_member.full_name,
+            "updated_at": service_request.updated_at.isoformat(),
+        }, message="Service request assigned successfully")
+    
+    except Exception as e:
+        logger.error(f"Error assigning service request: {str(e)}")
+        return api_error("Failed to assign service request", 500)
+
+
+@bp.route("/service-requests/<request_id>", methods=["DELETE"])
+@login_required
+@require_admin
+def delete_service_request(request_id):
+    """
+    Delete a service request (Admin only).
+    """
+    try:
+        from app.models import ServiceRequest, ServiceRequestHistory
+        from app.audit import log_action
+        
+        service_request = ServiceRequest.query.get(request_id)
+        
+        if not service_request:
+            return api_error("Service request not found", 404)
+        
+        # Log action before deletion
+        log_action(
+            "service_request_deleted",
+            {
+                "service_request_id": service_request.id,
+                "deleted_by": current_user.id,
+                "title": service_request.title,
+                "status": service_request.status
+            }
+        )
+        
+        logger.info(f"Service request {request_id} deleted by admin {current_user.id}")
+        
+        # Delete history first (foreign key constraint)
+        ServiceRequestHistory.query.filter_by(service_request_id=request_id).delete()
+        
+        # Delete service request
+        db.session.delete(service_request)
+        db.session.commit()
+        
+        return api_response(message="Service request deleted successfully")
+    
+    except Exception as e:
+        logger.error(f"Error deleting service request: {str(e)}")
+        return api_error("Failed to delete service request", 500)
