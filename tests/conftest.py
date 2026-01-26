@@ -40,6 +40,7 @@ def seed_roles(app):
         base_roles = [
             ("user",     "Default regular user role"),
             ("verifier","Can verify VIN records"),
+            ("staff",    "Staff member role"),
             ("admin",    "Administrator with full access"),
         ]
         for name, desc in base_roles:

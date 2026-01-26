@@ -298,3 +298,98 @@ class UserProfile(db.Model):
         return f"<UserProfile {self.user_id}>"
 
 
+class ServiceRequest(db.Model):
+    """Model for service requests with workflow management."""
+    __tablename__ = "service_request"
+
+    # Status constants
+    STATUS_DRAFT = "draft"
+    STATUS_SUBMITTED = "submitted"
+    STATUS_IN_REVIEW = "in_review"
+    STATUS_APPROVED = "approved"
+    STATUS_REJECTED = "rejected"
+    STATUS_COMPLETED = "completed"
+
+    VALID_STATUSES = [
+        STATUS_DRAFT, STATUS_SUBMITTED, STATUS_IN_REVIEW,
+        STATUS_APPROVED, STATUS_REJECTED, STATUS_COMPLETED
+    ]
+
+    # Priority constants
+    PRIORITY_LOW = "low"
+    PRIORITY_NORMAL = "normal"
+    PRIORITY_HIGH = "high"
+    PRIORITY_URGENT = "urgent"
+
+    VALID_PRIORITIES = [PRIORITY_LOW, PRIORITY_NORMAL, PRIORITY_HIGH, PRIORITY_URGENT]
+
+    # Valid categories
+    VALID_CATEGORIES = ["compliance", "support", "inquiry", "complaint", "other"]
+
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    title = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    category = db.Column(db.String(50), nullable=False)
+    status = db.Column(db.String(20), nullable=False, default=STATUS_DRAFT)
+    priority = db.Column(db.String(10), nullable=False, default=PRIORITY_NORMAL)
+    
+    # Foreign keys
+    created_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    assigned_to = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True, index=True)
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    # Relationships
+    creator = db.relationship("User", foreign_keys=[created_by], backref="created_requests")
+    assignee = db.relationship("User", foreign_keys=[assigned_to], backref="assigned_requests")
+
+    def __repr__(self):
+        return f"<ServiceRequest {self.id} - {self.title[:30]}>"
+
+    def can_edit(self, user):
+        """Only creator can edit draft requests."""
+        return self.status == self.STATUS_DRAFT and self.created_by == user.id
+
+    def can_submit(self, user):
+        """Only creator can submit draft requests."""
+        return self.status == self.STATUS_DRAFT and self.created_by == user.id
+
+    def can_review(self, user):
+        """Only staff can move to in_review."""
+        return user.role and user.role.name == "staff"
+
+    def can_approve_or_reject(self, user):
+        """Only admin can approve or reject."""
+        return user.role and user.role.name == "admin"
+
+    def can_assign(self, user):
+        """Only admin can assign staff."""
+        return user.role and user.role.name == "admin"
+
+    def is_completed(self):
+        """Check if request is in completed state."""
+        return self.status == self.STATUS_COMPLETED
+
+
+class ServiceRequestHistory(db.Model):
+    """Model for tracking service request status changes and state transitions."""
+    __tablename__ = "service_request_history"
+
+    id = db.Column(db.Integer, primary_key=True)
+    service_request_id = db.Column(db.String(36), db.ForeignKey("service_request.id"), nullable=False, index=True)
+    action = db.Column(db.String(100), nullable=False)  # submitted, reviewed, approved, rejected, assigned, completed
+    old_status = db.Column(db.String(20), nullable=True)
+    new_status = db.Column(db.String(20), nullable=True)
+    changed_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    details = db.Column(db.JSON, nullable=True)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    # Relationships
+    service_request = db.relationship("ServiceRequest", backref="history")
+    user = db.relationship("User", backref="service_request_changes")
+
+    def __repr__(self):
+        return f"<ServiceRequestHistory {self.action} on {self.timestamp}>"
+
