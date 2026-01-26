@@ -393,3 +393,28 @@ class ServiceRequestHistory(db.Model):
     def __repr__(self):
         return f"<ServiceRequestHistory {self.action} on {self.timestamp}>"
 
+
+class DeviceToken(db.Model):
+    """Model for tracking device tokens for multi-device logout support."""
+    __tablename__ = "device_token"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    device_id = db.Column(db.String(100), nullable=False, index=True)
+    refresh_token = db.Column(db.Text, nullable=False)
+    user_agent = db.Column(db.String(500), nullable=True)
+    ip_address = db.Column(db.String(45), nullable=True)
+    expires_at = db.Column(db.DateTime, nullable=False, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    last_used = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationship
+    user = db.relationship("User", backref="device_tokens")
+
+    def __repr__(self):
+        return f"<DeviceToken {self.device_id} for user {self.user_id}>"
+
+    def is_expired(self):
+        """Check if token has expired."""
+        return datetime.utcnow() > self.expires_at
+

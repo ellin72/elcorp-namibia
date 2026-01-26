@@ -3,6 +3,7 @@ import os
 import logging
 from pathlib import Path
 from flask import Flask, render_template
+from flask_cors import CORS
 from dotenv import load_dotenv
 from .extensions import db, migrate, login_manager, mail, limiter, csrf
 
@@ -81,7 +82,18 @@ def create_app(test_config=None):
     # 4. Configure logging
     _configure_logging(app)
     
-    # 5. Register blueprints
+    # 5. Configure CORS for frontend and mobile apps
+    cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
+    CORS(
+        app,
+        resources={r"/api/*": {"origins": cors_origins}},
+        supports_credentials=True,
+        allow_headers=["Content-Type", "Authorization", "X-Device-ID", "X-Requested-With"],
+        expose_headers=["Content-Type"],
+        methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    )
+    
+    # 6. Register blueprints
     from .main import bp as main_bp
     app.register_blueprint(main_bp)        # mounts "/" → main.index
 
@@ -97,10 +109,14 @@ def create_app(test_config=None):
     from .api import bp as api_bp
     app.register_blueprint(api_bp)         # mounts "/api/..."
     
-    # 6. Initialize other extensions
+    # Register API v1 blueprint
+    from .api_v1 import bp as api_v1_bp
+    app.register_blueprint(api_v1_bp)      # mounts "/api/v1/..."
+    
+    # 7. Initialize other extensions
     csrf.init_app(app)
 
-    # 7. Set up Flask-Admin
+    # 8. Set up Flask-Admin
     from .admin import init_admin
     init_admin(app)
 
