@@ -1,0 +1,129 @@
+# Docker Compose for local development
+# Includes: PostgreSQL, Redis, Flask backend, Celery worker/beat, frontend
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: elcorp_postgres
+    environment:
+      POSTGRES_USER: ${DB_USER:-elcorp}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-dev-password}
+      POSTGRES_DB: ${DB_NAME:-elcorp_dev}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-elcorp}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache & Message Broker
+  redis:
+    image: redis:7-alpine
+    container_name: elcorp_redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Flask Backend API
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: elcorp_backend
+    environment:
+      FLASK_APP: src/main.py
+      FLASK_ENV: development
+      DATABASE_URL: postgresql://${DB_USER:-elcorp}:${DB_PASSWORD:-dev-password}@postgres:5432/${DB_NAME:-elcorp_dev}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-secret-key-change-in-production}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      CORS_ORIGINS: "http://localhost:5173,http://localhost:3000"
+      LOG_LEVEL: DEBUG
+    ports:
+      - "${API_PORT:-5000}:5000"
+    volumes:
+      - ./backend/src:/app/src
+      - ./backend/tests:/app/tests
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: flask run --host=0.0.0.0
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Celery Worker (commented out for now)
+  # celery_worker:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.dev
+  #   container_name: elcorp_celery_worker
+  #   environment:
+  #     CELERY_BROKER_URL: redis://redis:6379/1
+  #     CELERY_RESULT_BACKEND: redis://redis:6379/1
+  #     DATABASE_URL: postgresql://${DB_USER:-elcorp}:${DB_PASSWORD:-dev-password}@postgres:5432/${DB_NAME:-elcorp_dev}
+  #     LOG_LEVEL: DEBUG
+  #   volumes:
+  #     - ./backend/src:/app/src
+  #   depends_on:
+  #     - redis
+  #     - postgres
+  #   command: celery -A src.elcorp.celery_app worker --loglevel=debug
+
+  # Celery Beat Scheduler (commented out for now)
+  # celery_beat:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.dev
+  #   container_name: elcorp_celery_beat
+  #   environment:
+  #     CELERY_BROKER_URL: redis://redis:6379/1
+  #     CELERY_RESULT_BACKEND: redis://redis:6379/1
+  #     DATABASE_URL: postgresql://${DB_USER:-elcorp}:${DB_PASSWORD:-dev-password}@postgres:5432/${DB_NAME:-elcorp_dev}
+  #     LOG_LEVEL: DEBUG
+  #   volumes:
+  #     - ./backend/src:/app/src
+  #   depends_on:
+  #     - redis
+  #     - postgres
+  #   command: celery -A src.elcorp.celery_app beat --loglevel=debug
+
+  # React Frontend (commented out for now)
+  # frontend:
+  #   build:
+  #     context: ./frontend
+  #     dockerfile: Dockerfile.dev
+  #   container_name: elcorp_frontend
+  #   environment:
+  #     VITE_API_URL: http://localhost:5000
+  #   ports:
+  #     - "${FRONTEND_PORT:-5173}:5173"
+  #   volumes:
+  #     - ./frontend/src:/app/src
+  #     - ./frontend/public:/app/public
+  #   depends_on:
+  #     - backend
+  #   command: npm run dev
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  default:
+    name: elcorp_network
