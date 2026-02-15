@@ -44,7 +44,7 @@ jobs:
           output: trivy-report.txt
 
       - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-report.txt  
           category: Security Scan
