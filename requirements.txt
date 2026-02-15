@@ -4,7 +4,7 @@ blinker==1.9.0
 click==8.2.1
 colorama==0.4.6
 Deprecated==1.2.18
-dnspython==2.7.0
+dnspython==2.8.0
 email_validator==2.2.0
 Flask==3.1.2
 Flask-Admin==1.6.1
