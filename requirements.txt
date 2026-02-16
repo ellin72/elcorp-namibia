@@ -37,7 +37,7 @@ pytest==8.4.1
 pytest-mock==3.14.1
 python-dotenv==1.0.1
 qrcode==7.4.2
-rich==13.9.4
+rich==14.3.2
 SQLAlchemy==2.0.32
 typing_extensions==4.15.0
 Werkzeug==3.1.3
