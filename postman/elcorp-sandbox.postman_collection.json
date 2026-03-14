@@ -15,7 +15,9 @@
   ],
   "auth": {
     "type": "bearer",
-    "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
+    "bearer": [
+      { "key": "token", "value": "{{access_token}}", "type": "string" }
+    ]
   },
   "item": [
     {
@@ -132,7 +134,11 @@
             "body": {
               "mode": "formdata",
               "formdata": [
-                { "key": "document_type", "value": "national_id", "type": "text" },
+                {
+                  "key": "document_type",
+                  "value": "national_id",
+                  "type": "text"
+                },
                 { "key": "file", "type": "file", "src": "" }
               ]
             }
@@ -207,7 +213,10 @@
         },
         {
           "name": "Get Payment",
-          "request": { "method": "GET", "url": "{{base_url}}/payments/{{payment_id}}" }
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/payments/{{payment_id}}"
+          }
         },
         {
           "name": "List My Payments",
@@ -259,11 +268,17 @@
         },
         {
           "name": "Get Merchant (admin)",
-          "request": { "method": "GET", "url": "{{base_url}}/merchants/{{merchant_id}}" }
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/merchants/{{merchant_id}}"
+          }
         },
         {
           "name": "Deactivate Merchant (admin)",
-          "request": { "method": "POST", "url": "{{base_url}}/merchants/{{merchant_id}}/deactivate" }
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/merchants/{{merchant_id}}/deactivate"
+          }
         }
       ]
     },

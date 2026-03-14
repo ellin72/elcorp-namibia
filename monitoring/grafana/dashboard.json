@@ -26,7 +26,16 @@
           }
         ],
         "fieldConfig": {
-          "defaults": { "unit": "percentunit", "thresholds": { "steps": [{ "value": 0, "color": "green" }, { "value": 0.01, "color": "yellow" }, { "value": 0.05, "color": "red" }] } }
+          "defaults": {
+            "unit": "percentunit",
+            "thresholds": {
+              "steps": [
+                { "value": 0, "color": "green" },
+                { "value": 0.01, "color": "yellow" },
+                { "value": 0.05, "color": "red" }
+              ]
+            }
+          }
         }
       },
       {
@@ -40,7 +49,16 @@
           }
         ],
         "fieldConfig": {
-          "defaults": { "unit": "s", "thresholds": { "steps": [{ "value": 0, "color": "green" }, { "value": 1, "color": "yellow" }, { "value": 2, "color": "red" }] } }
+          "defaults": {
+            "unit": "s",
+            "thresholds": {
+              "steps": [
+                { "value": 0, "color": "green" },
+                { "value": 1, "color": "yellow" },
+                { "value": 2, "color": "red" }
+              ]
+            }
+          }
         }
       },
       {

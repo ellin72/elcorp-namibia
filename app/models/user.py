@@ -63,7 +63,10 @@ class User(db.Model):
 
     # relationships
     roles = db.relationship("Role", secondary=user_roles, backref="users", lazy="joined")
-    kyc_documents = db.relationship("KYCDocument", backref="user", lazy="dynamic")
+    kyc_documents = db.relationship(
+        "KYCDocument", backref="user", lazy="dynamic",
+        foreign_keys="KYCDocument.user_id",
+    )
     payments = db.relationship("Payment", backref="payer", lazy="dynamic", foreign_keys="Payment.user_id")
 
     # ---- password helpers ----

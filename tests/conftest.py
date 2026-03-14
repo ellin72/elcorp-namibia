@@ -24,10 +24,14 @@ def app():
 
 @pytest.fixture(autouse=True)
 def _clean_tables(app):
-    """Roll back any changes after each test."""
+    """Delete all data after each test for isolation."""
+    yield
     with app.app_context():
-        yield
         _db.session.rollback()
+        for table in reversed(_db.metadata.sorted_tables):
+            if table.name != "roles":
+                _db.session.execute(table.delete())
+        _db.session.commit()
 
 
 @pytest.fixture()

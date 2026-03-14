@@ -10,10 +10,10 @@
 
 Three roles enforced at the API layer:
 
-| Role | Access |
-|------|--------|
-| user | Own profile, KYC, payments |
-| staff | + KYC review, merchant viewing |
+| Role  | Access                                                              |
+| ----- | ------------------------------------------------------------------- |
+| user  | Own profile, KYC, payments                                          |
+| staff | + KYC review, merchant viewing                                      |
 | admin | + user management, merchant onboarding, audit logs, role assignment |
 
 Role checks use the `@roles_required()` decorator applied **after** JWT authentication.

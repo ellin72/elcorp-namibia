@@ -34,6 +34,7 @@ Content-Type: application/json
 ```
 
 Password requirements:
+
 - Minimum 8 characters
 - At least one uppercase letter
 - At least one lowercase letter
@@ -70,6 +71,7 @@ file = @document.png
 ```
 
 Supported `document_type` values:
+
 - `national_id`
 - `passport`
 - `drivers_license`
@@ -107,8 +109,8 @@ Or reject:
 
 ## Roles
 
-| Role | Capabilities |
-|------|-------------|
-| `user` | Sign up, manage profile, upload KYC, make payments |
-| `staff` | Review KYC documents, view merchant details |
+| Role    | Capabilities                                                             |
+| ------- | ------------------------------------------------------------------------ |
+| `user`  | Sign up, manage profile, upload KYC, make payments                       |
+| `staff` | Review KYC documents, view merchant details                              |
 | `admin` | All staff capabilities + manage users, merchants, roles, view audit logs |

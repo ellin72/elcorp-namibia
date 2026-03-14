@@ -8,22 +8,22 @@ All authenticated endpoints require the header `Authorization: Bearer <access_to
 
 ## Health
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| GET | `/health` | No | Liveness probe |
-| GET | `/health/ready` | No | Readiness (DB) probe |
+| Method | Path            | Auth | Description          |
+| ------ | --------------- | ---- | -------------------- |
+| GET    | `/health`       | No   | Liveness probe       |
+| GET    | `/health/ready` | No   | Readiness (DB) probe |
 
 ---
 
 ## Auth
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| POST | `/auth/signup` | No | Create account |
-| POST | `/auth/login` | No | Obtain tokens |
-| POST | `/auth/refresh` | No | Refresh access token |
-| GET | `/auth/validate` | Yes | Validate current token |
-| POST | `/auth/logout` | Yes | Placeholder logout |
+| Method | Path             | Auth | Description            |
+| ------ | ---------------- | ---- | ---------------------- |
+| POST   | `/auth/signup`   | No   | Create account         |
+| POST   | `/auth/login`    | No   | Obtain tokens          |
+| POST   | `/auth/refresh`  | No   | Refresh access token   |
+| GET    | `/auth/validate` | Yes  | Validate current token |
+| POST   | `/auth/logout`   | Yes  | Placeholder logout     |
 
 ### POST /auth/signup
 
@@ -70,12 +70,12 @@ All authenticated endpoints require the header `Authorization: Bearer <access_to
 
 ## Identity
 
-| Method | Path | Auth | Roles | Description |
-|--------|------|------|-------|-------------|
-| GET | `/me` | Yes | any | Get own profile |
-| PUT | `/me` | Yes | any | Update own profile |
-| GET | `/users` | Yes | admin | List all users |
-| GET | `/users/:id` | Yes | admin | Get user by ID |
+| Method | Path         | Auth | Roles | Description        |
+| ------ | ------------ | ---- | ----- | ------------------ |
+| GET    | `/me`        | Yes  | any   | Get own profile    |
+| PUT    | `/me`        | Yes  | any   | Update own profile |
+| GET    | `/users`     | Yes  | admin | List all users     |
+| GET    | `/users/:id` | Yes  | admin | Get user by ID     |
 
 ### PUT /me
 
@@ -85,19 +85,19 @@ Accepts any subset of: `first_name`, `last_name`, `phone`, `date_of_birth`, `nat
 
 ## KYC
 
-| Method | Path | Auth | Roles | Description |
-|--------|------|------|-------|-------------|
-| POST | `/kyc/upload` | Yes | any | Upload document |
-| GET | `/kyc/documents` | Yes | any | List own documents |
-| POST | `/kyc/:id/review` | Yes | admin, staff | Approve / reject |
-| GET | `/kyc/pending` | Yes | admin, staff | List pending docs |
+| Method | Path              | Auth | Roles        | Description        |
+| ------ | ----------------- | ---- | ------------ | ------------------ |
+| POST   | `/kyc/upload`     | Yes  | any          | Upload document    |
+| GET    | `/kyc/documents`  | Yes  | any          | List own documents |
+| POST   | `/kyc/:id/review` | Yes  | admin, staff | Approve / reject   |
+| GET    | `/kyc/pending`    | Yes  | admin, staff | List pending docs  |
 
 ### POST /kyc/upload (`multipart/form-data`)
 
-| Field | Type | Required | Values |
-|-------|------|----------|--------|
-| file | file | yes | image/pdf |
-| document_type | string | yes | `national_id`, `passport`, `drivers_license`, `proof_of_address`, `selfie` |
+| Field         | Type   | Required | Values                                                                     |
+| ------------- | ------ | -------- | -------------------------------------------------------------------------- |
+| file          | file   | yes      | image/pdf                                                                  |
+| document_type | string | yes      | `national_id`, `passport`, `drivers_license`, `proof_of_address`, `selfie` |
 
 ### POST /kyc/:id/review
 
@@ -115,14 +115,14 @@ or
 
 ## Payments
 
-| Method | Path | Auth | Roles | Description |
-|--------|------|------|-------|-------------|
-| POST | `/payments/tokens` | Yes | any | Tokenise instrument |
-| POST | `/payments` | Yes | any | Create payment |
-| POST | `/payments/:id/process` | Yes | any | Process (sandbox) |
-| GET | `/payments/:id` | Yes | any | Get payment details |
-| GET | `/payments` | Yes | any | List own payments |
-| POST | `/payments/simulate-payout` | Yes | admin | Simulate merchant payout |
+| Method | Path                        | Auth | Roles | Description              |
+| ------ | --------------------------- | ---- | ----- | ------------------------ |
+| POST   | `/payments/tokens`          | Yes  | any   | Tokenise instrument      |
+| POST   | `/payments`                 | Yes  | any   | Create payment           |
+| POST   | `/payments/:id/process`     | Yes  | any   | Process (sandbox)        |
+| GET    | `/payments/:id`             | Yes  | any   | Get payment details      |
+| GET    | `/payments`                 | Yes  | any   | List own payments        |
+| POST   | `/payments/simulate-payout` | Yes  | admin | Simulate merchant payout |
 
 ### POST /payments/tokens
 
@@ -157,13 +157,13 @@ No body needed. Returns updated payment with `status`, `gateway_ref`.
 
 ## Merchants
 
-| Method | Path | Auth | Roles | Description |
-|--------|------|------|-------|-------------|
-| POST | `/merchants` | Yes | admin | Onboard merchant |
-| GET | `/merchants` | Yes | admin | List merchants |
-| GET | `/merchants/:id` | Yes | admin, staff | Get merchant |
-| PUT | `/merchants/:id` | Yes | admin | Update merchant |
-| POST | `/merchants/:id/deactivate` | Yes | admin | Deactivate |
+| Method | Path                        | Auth | Roles        | Description      |
+| ------ | --------------------------- | ---- | ------------ | ---------------- |
+| POST   | `/merchants`                | Yes  | admin        | Onboard merchant |
+| GET    | `/merchants`                | Yes  | admin        | List merchants   |
+| GET    | `/merchants/:id`            | Yes  | admin, staff | Get merchant     |
+| PUT    | `/merchants/:id`            | Yes  | admin        | Update merchant  |
+| POST   | `/merchants/:id/deactivate` | Yes  | admin        | Deactivate       |
 
 ### POST /merchants
 
@@ -183,12 +183,12 @@ No body needed. Returns updated payment with `status`, `gateway_ref`.
 
 ## Admin
 
-| Method | Path | Auth | Roles | Description |
-|--------|------|------|-------|-------------|
-| GET | `/admin/audit-logs` | Yes | admin | Paginated audit trail |
-| GET | `/admin/stats` | Yes | admin | System summary |
-| PUT | `/admin/users/:id/roles` | Yes | admin | Set user roles |
-| POST | `/admin/users/:id/deactivate` | Yes | admin | Deactivate user |
+| Method | Path                          | Auth | Roles | Description           |
+| ------ | ----------------------------- | ---- | ----- | --------------------- |
+| GET    | `/admin/audit-logs`           | Yes  | admin | Paginated audit trail |
+| GET    | `/admin/stats`                | Yes  | admin | System summary        |
+| PUT    | `/admin/users/:id/roles`      | Yes  | admin | Set user roles        |
+| POST   | `/admin/users/:id/deactivate` | Yes  | admin | Deactivate user       |
 
 ### GET /admin/audit-logs?page=1&per_page=50
 

@@ -4,14 +4,14 @@ Production-grade API for digital identity verification and payment processing in
 
 ## What's in this MVP
 
-| Epic | Delivered |
-|------|-----------|
-| **Identity Core** | Signup, profile, KYC upload, automated + manual verification, audit trail |
-| **Payments Sandbox** | Tokenised instruments, payment creation & processing, merchant onboarding, simulated payouts |
-| **Developer Experience** | REST API, Postman collection, Python SDK, Node SDK, sample CLI app |
-| **Security** | JWT auth, bcrypt passwords, Fernet field-level encryption, RBAC, rate limiting |
-| **CI/CD** | GitHub Actions (lint → test → build → deploy), Docker images, K8s manifests |
-| **Monitoring** | Prometheus metrics, Grafana dashboard, alerting rules |
+| Epic                     | Delivered                                                                                    |
+| ------------------------ | -------------------------------------------------------------------------------------------- |
+| **Identity Core**        | Signup, profile, KYC upload, automated + manual verification, audit trail                    |
+| **Payments Sandbox**     | Tokenised instruments, payment creation & processing, merchant onboarding, simulated payouts |
+| **Developer Experience** | REST API, Postman collection, Python SDK, Node SDK, sample CLI app                           |
+| **Security**             | JWT auth, bcrypt passwords, Fernet field-level encryption, RBAC, rate limiting               |
+| **CI/CD**                | GitHub Actions (lint → test → build → deploy), Docker images, K8s manifests                  |
+| **Monitoring**           | Prometheus metrics, Grafana dashboard, alerting rules                                        |
 
 ## Quick Start
 
@@ -93,13 +93,13 @@ See [PILOT_ONBOARDING.md](PILOT_ONBOARDING.md) for a step-by-step guide to onboa
 
 Copy `.env.example` and fill in values. Key variables:
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `SECRET_KEY` | yes | — | Flask secret / JWT signing key |
-| `ENCRYPTION_KEY` | yes | — | Fernet key for field encryption |
-| `DATABASE_URL` | no | `sqlite:///dev.db` | Database connection string |
-| `REDIS_URL` | no | `redis://localhost:6379/0` | Redis for Celery / rate limits |
-| `FLASK_ENV` | no | `development` | `development` / `testing` / `production` |
+| Variable         | Required | Default                    | Description                              |
+| ---------------- | -------- | -------------------------- | ---------------------------------------- |
+| `SECRET_KEY`     | yes      | —                          | Flask secret / JWT signing key           |
+| `ENCRYPTION_KEY` | yes      | —                          | Fernet key for field encryption          |
+| `DATABASE_URL`   | no       | `sqlite:///dev.db`         | Database connection string               |
+| `REDIS_URL`      | no       | `redis://localhost:6379/0` | Redis for Celery / rate limits           |
+| `FLASK_ENV`      | no       | `development`              | `development` / `testing` / `production` |
 
 ## License
 

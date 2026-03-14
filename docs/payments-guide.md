@@ -89,16 +89,17 @@ Currently supported: `NAD` (Namibian Dollar). The `currency` field is always req
 
 ## Error Handling
 
-| Code | Meaning |
-|------|---------|
-| 400 | Invalid payment data |
-| 404 | Payment or merchant not found |
-| 409 | Payment already processed |
-| 422 | Validation failure (missing fields, bad amount) |
+| Code | Meaning                                         |
+| ---- | ----------------------------------------------- |
+| 400  | Invalid payment data                            |
+| 404  | Payment or merchant not found                   |
+| 409  | Payment already processed                       |
+| 422  | Validation failure (missing fields, bad amount) |
 
 ## Sandbox vs Production
 
 In sandbox mode (`SANDBOX_MODE=true`, the default), the payment gateway:
+
 - Instantly approves all payments
 - Generates fake gateway references (`sandbox-<uuid>`)
 - Simulates payouts without real fund movement

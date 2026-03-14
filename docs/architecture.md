@@ -16,13 +16,13 @@
 
 ## Components
 
-| Component | Tech | Purpose |
-|-----------|------|---------|
-| API Server | Flask 3.1 + Gunicorn | REST API, JWT auth, RBAC |
-| Database | PostgreSQL 15 | Users, KYC, payments, merchants, audit |
-| Cache / Broker | Redis 7 | Celery task broker, rate-limit backend |
-| Worker | Celery | Background KYC verification, email |
-| Monitoring | Prometheus + Grafana | Metrics, dashboards, alerts |
+| Component      | Tech                 | Purpose                                |
+| -------------- | -------------------- | -------------------------------------- |
+| API Server     | Flask 3.1 + Gunicorn | REST API, JWT auth, RBAC               |
+| Database       | PostgreSQL 15        | Users, KYC, payments, merchants, audit |
+| Cache / Broker | Redis 7              | Celery task broker, rate-limit backend |
+| Worker         | Celery               | Background KYC verification, email     |
+| Monitoring     | Prometheus + Grafana | Metrics, dashboards, alerts            |
 
 ## Project Layout
 
@@ -75,6 +75,7 @@ Request → Flask-Limiter → @jwt_required → @roles_required → Route → Se
 ### Background Processing
 
 Celery workers consume tasks from Redis. Task queues:
+
 - `default` — general tasks
 - `verification` — KYC verification checks
 - `email` — notification emails
@@ -95,8 +96,8 @@ Merchant ── Payment (1:N as receiver)
 
 ## Environments
 
-| Name | Database | Debug | Rate Limits |
-|------|----------|-------|-------------|
-| development | SQLite | on | lenient |
-| testing | SQLite (memory) | off | disabled |
-| production | PostgreSQL | off | strict |
+| Name        | Database        | Debug | Rate Limits |
+| ----------- | --------------- | ----- | ----------- |
+| development | SQLite          | on    | lenient     |
+| testing     | SQLite (memory) | off   | disabled    |
+| production  | PostgreSQL      | off   | strict      |

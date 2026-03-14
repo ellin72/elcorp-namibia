@@ -45,7 +45,7 @@ def create_app(config_name: str | None = None) -> Flask:
 
     # ---------- monitoring ----------
     if app.config.get("PROMETHEUS_ENABLED"):
-        from prometheus_flask_instrumentator import PrometheusMetrics
+        from prometheus_flask_exporter import PrometheusMetrics
 
         PrometheusMetrics(app)
 
