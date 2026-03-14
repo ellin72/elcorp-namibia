@@ -42,7 +42,7 @@ block content %}
       );
       window.location.href = "/ui/dashboard";
     } catch (err) {
-      showAlert("alert", err.error || "Login failed", "error");
+      showAlert("alert", err.detail || err.error || "Login failed", "error");
       btn.disabled = false;
       btn.textContent = "Sign In";
     }

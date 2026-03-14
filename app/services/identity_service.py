@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import structlog
+from flask import current_app
 
 from app.extensions import db
 from app.models.user import User, Role
@@ -25,10 +26,17 @@ def signup(*, email: str, password: str, first_name: str, last_name: str, phone:
     )
     user.set_password(password)
 
-    # assign default role
-    role = Role.query.filter_by(name="user").first()
-    if role:
-        user.roles.append(role)
+    # First user ever? → auto-admin; otherwise default 'user' role
+    is_first_user = User.query.count() == 0 and not current_app.testing
+    if is_first_user:
+        for rname in ("admin", "staff", "user"):
+            r = Role.query.filter_by(name=rname).first()
+            if r:
+                user.roles.append(r)
+    else:
+        role = Role.query.filter_by(name="user").first()
+        if role:
+            user.roles.append(role)
 
     db.session.add(user)
     db.session.commit()

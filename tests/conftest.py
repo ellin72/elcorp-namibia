@@ -82,8 +82,10 @@ def admin_headers(client, db):
     user = db.session.get(User, data["user"]["id"])
     admin_role = Role.query.filter_by(name="admin").first()
     staff_role = Role.query.filter_by(name="staff").first()
-    user.roles.append(admin_role)
-    user.roles.append(staff_role)
+    if admin_role not in user.roles:
+        user.roles.append(admin_role)
+    if staff_role not in user.roles:
+        user.roles.append(staff_role)
     db.session.commit()
 
     # Re-login to get token with admin role

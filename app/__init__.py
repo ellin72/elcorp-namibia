@@ -67,8 +67,19 @@ def create_app(config_name: str | None = None) -> Flask:
     # ---------- error handlers ----------
     _register_error_handlers(app)
 
+    # ---------- CLI commands ----------
+    _register_cli(app)
+
     # ---------- upload folder ----------
     os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+
+    # ---------- seed default roles / permissions ----------
+    with app.app_context():
+        from app.services.identity_service import seed_roles
+        try:
+            seed_roles()
+        except Exception:
+            pass  # table may not exist yet before first migration
 
     return app
 
@@ -86,3 +97,24 @@ def _register_error_handlers(app: Flask) -> None:
     app.register_error_handler(404, handle_404)
     app.register_error_handler(422, handle_422)
     app.register_error_handler(500, handle_500)
+
+
+def _register_cli(app: Flask) -> None:
+    import click
+
+    @app.cli.command("promote-admin")
+    @click.argument("email")
+    def promote_admin(email: str):
+        """Grant admin + staff roles to an existing user by email."""
+        from app.models.user import User, Role
+
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            click.echo(f"User {email} not found.")
+            raise SystemExit(1)
+        for rname in ("admin", "staff"):
+            role = Role.query.filter_by(name=rname).first()
+            if role and role not in user.roles:
+                user.roles.append(role)
+        db.session.commit()
+        click.echo(f"Promoted {email} to admin + staff.")

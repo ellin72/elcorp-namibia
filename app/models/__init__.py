@@ -5,6 +5,9 @@ from app.models.kyc import KYCDocument  # noqa: F401
 from app.models.payment import Payment, PaymentToken  # noqa: F401
 from app.models.merchant import Merchant  # noqa: F401
 from app.models.audit import AuditLog  # noqa: F401
+from app.models.permission import Permission  # noqa: F401
+from app.models.revoked_token import RevokedToken  # noqa: F401
+from app.models.webhook import WebhookSubscription, WebhookDelivery  # noqa: F401
 
 __all__ = [
     "User",
@@ -14,4 +17,8 @@ __all__ = [
     "PaymentToken",
     "Merchant",
     "AuditLog",
+    "Permission",
+    "RevokedToken",
+    "WebhookSubscription",
+    "WebhookDelivery",
 ]

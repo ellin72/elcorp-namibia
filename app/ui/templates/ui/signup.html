@@ -31,8 +31,12 @@ block content %}
           id="password"
           required
           minlength="8"
-          placeholder="Min 8 characters"
+          placeholder="Uppercase, lowercase, digit & special char"
         />
+        <small class="text-muted text-sm"
+          >8+ chars with uppercase, lowercase, digit, and special character
+          (!@#$%^&*)</small
+        >
       </div>
       <button type="submit" class="btn btn-primary btn-block" id="submitBtn">
         Create Account
@@ -62,7 +66,7 @@ block content %}
         });
         window.location.href = "/ui/dashboard";
       } catch (err) {
-        showAlert("alert", err.error || "Signup failed", "error");
+        showAlert("alert", err.detail || err.error || "Signup failed", "error");
         btn.disabled = false;
         btn.textContent = "Create Account";
       }

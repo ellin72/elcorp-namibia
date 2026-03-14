@@ -75,8 +75,8 @@ const API = (() => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: "Bearer " + rt,
         },
+        body: JSON.stringify({ refresh_token: rt }),
       });
       if (!res.ok) {
         clearTokens();
