@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elcorp-worker
+  namespace: elcorp
+  labels:
+    app: elcorp-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: elcorp-worker
+  template:
+    metadata:
+      labels:
+        app: elcorp-worker
+    spec:
+      containers:
+        - name: worker
+          image: ghcr.io/elcorp/elcorp-namibia/api:latest
+          command: ["celery", "-A", "app.celery_app:celery", "worker", "--loglevel=info", "-Q", "default,verification,email"]
+          envFrom:
+            - configMapRef:
+                name: elcorp-config
+            - secretRef:
+                name: elcorp-secrets
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 300m
+              memory: 512Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elcorp-beat
+  namespace: elcorp
+  labels:
+    app: elcorp-beat
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: elcorp-beat
+  template:
+    metadata:
+      labels:
+        app: elcorp-beat
+    spec:
+      containers:
+        - name: beat
+          image: ghcr.io/elcorp/elcorp-namibia/api:latest
+          command: ["celery", "-A", "app.celery_app:celery", "beat", "--loglevel=info"]
+          envFrom:
+            - configMapRef:
+                name: elcorp-config
+            - secretRef:
+                name: elcorp-secrets
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 100m
+              memory: 256Mi

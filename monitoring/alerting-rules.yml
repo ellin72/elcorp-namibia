@@ -1,0 +1,61 @@
+groups:
+  - name: elcorp-api
+    rules:
+      - alert: HighErrorRate
+        expr: rate(flask_http_request_total{status=~"5.."}[5m]) / rate(flask_http_request_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High 5xx error rate on {{ $labels.instance }}"
+          description: "More than 5% of requests are failing with 5xx for the last 5 minutes."
+
+      - alert: HighLatency
+        expr: histogram_quantile(0.95, rate(flask_http_request_duration_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "P95 latency above 2s on {{ $labels.instance }}"
+
+      - alert: APIDown
+        expr: up{job="elcorp-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Elcorp API is down"
+
+  - name: elcorp-infra
+    rules:
+      - alert: PostgresDown
+        expr: up{job="postgres"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL is unreachable"
+
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis is unreachable"
+
+      - alert: CeleryWorkerDown
+        expr: up{job="celery-worker"} == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Celery worker is unreachable"
+
+      - alert: HighMemoryUsage
+        expr: process_resident_memory_bytes{job="elcorp-api"} > 512 * 1024 * 1024
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API memory usage exceeds 512 MB"

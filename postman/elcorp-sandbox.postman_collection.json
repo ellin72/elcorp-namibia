@@ -1,0 +1,303 @@
+{
+  "info": {
+    "name": "Elcorp Sandbox API",
+    "description": "Postman collection for the Elcorp Digital Identity & Payments MVP.\n\nBase URL: {{base_url}}",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:5000/api/v1" },
+    { "key": "access_token", "value": "" },
+    { "key": "refresh_token", "value": "" },
+    { "key": "user_id", "value": "" },
+    { "key": "merchant_id", "value": "" },
+    { "key": "payment_id", "value": "" },
+    { "key": "doc_id", "value": "" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": { "method": "GET", "url": "{{base_url}}/health" }
+        },
+        {
+          "name": "Ready Check",
+          "request": { "method": "GET", "url": "{{base_url}}/health/ready" }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Sign Up",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "pm.collectionVariables.set('access_token', json.access_token);",
+                  "pm.collectionVariables.set('refresh_token', json.refresh_token);",
+                  "pm.collectionVariables.set('user_id', json.user.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/signup",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@elcorp.na\",\n  \"password\": \"Test1234!\",\n  \"first_name\": \"Test\",\n  \"last_name\": \"User\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "pm.collectionVariables.set('access_token', json.access_token);",
+                  "pm.collectionVariables.set('refresh_token', json.refresh_token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@elcorp.na\",\n  \"password\": \"Test1234!\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/refresh",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Validate Token",
+          "request": { "method": "GET", "url": "{{base_url}}/auth/validate" }
+        },
+        {
+          "name": "Logout",
+          "request": { "method": "POST", "url": "{{base_url}}/auth/logout" }
+        }
+      ]
+    },
+    {
+      "name": "Identity",
+      "item": [
+        {
+          "name": "Get My Profile",
+          "request": { "method": "GET", "url": "{{base_url}}/me" }
+        },
+        {
+          "name": "Update My Profile",
+          "request": {
+            "method": "PUT",
+            "url": "{{base_url}}/me",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"first_name\": \"Updated\",\n  \"phone\": \"+264811234567\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Upload KYC Document",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/kyc/upload",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "document_type", "value": "national_id", "type": "text" },
+                { "key": "file", "type": "file", "src": "" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "My KYC Documents",
+          "request": { "method": "GET", "url": "{{base_url}}/kyc/documents" }
+        },
+        {
+          "name": "Review KYC (admin)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/kyc/{{doc_id}}/review",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decision\": \"approved\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Pending KYC (admin)",
+          "request": { "method": "GET", "url": "{{base_url}}/kyc/pending" }
+        }
+      ]
+    },
+    {
+      "name": "Payments",
+      "item": [
+        {
+          "name": "Create Payment Token",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/payments/tokens",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"instrument_type\": \"card\",\n  \"last_four\": \"4242\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Create Payment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "pm.collectionVariables.set('payment_id', json.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/payments",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"merchant_id\": \"{{merchant_id}}\",\n  \"amount\": 5000,\n  \"currency\": \"NAD\",\n  \"description\": \"Clinic visit\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Process Payment",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/payments/{{payment_id}}/process"
+          }
+        },
+        {
+          "name": "Get Payment",
+          "request": { "method": "GET", "url": "{{base_url}}/payments/{{payment_id}}" }
+        },
+        {
+          "name": "List My Payments",
+          "request": { "method": "GET", "url": "{{base_url}}/payments" }
+        },
+        {
+          "name": "Simulate Payout",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/payments/simulate-payout",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"merchant_id\": \"{{merchant_id}}\",\n  \"amount\": 10000,\n  \"currency\": \"NAD\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Merchants",
+      "item": [
+        {
+          "name": "Onboard Merchant (admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "pm.collectionVariables.set('merchant_id', json.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/merchants",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Pilot Clinic\",\n  \"contact_email\": \"clinic@pilot.na\",\n  \"business_type\": \"clinic\"\n}"
+            }
+          }
+        },
+        {
+          "name": "List Merchants (admin)",
+          "request": { "method": "GET", "url": "{{base_url}}/merchants" }
+        },
+        {
+          "name": "Get Merchant (admin)",
+          "request": { "method": "GET", "url": "{{base_url}}/merchants/{{merchant_id}}" }
+        },
+        {
+          "name": "Deactivate Merchant (admin)",
+          "request": { "method": "POST", "url": "{{base_url}}/merchants/{{merchant_id}}/deactivate" }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Audit Logs",
+          "request": { "method": "GET", "url": "{{base_url}}/admin/audit-logs" }
+        },
+        {
+          "name": "System Stats",
+          "request": { "method": "GET", "url": "{{base_url}}/admin/stats" }
+        },
+        {
+          "name": "Update User Roles",
+          "request": {
+            "method": "PUT",
+            "url": "{{base_url}}/admin/users/{{user_id}}/roles",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roles\": [\"user\", \"staff\"]\n}"
+            }
+          }
+        },
+        {
+          "name": "Deactivate User",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/admin/users/{{user_id}}/deactivate"
+          }
+        }
+      ]
+    }
+  ]
+}

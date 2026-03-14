@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elcorp-api
+  namespace: elcorp
+  labels:
+    app: elcorp-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: elcorp-api
+  template:
+    metadata:
+      labels:
+        app: elcorp-api
+    spec:
+      containers:
+        - name: api
+          image: ghcr.io/elcorp/elcorp-namibia/api:latest
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: elcorp-config
+            - secretRef:
+                name: elcorp-secrets
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health/ready
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          volumeMounts:
+            - name: uploads
+              mountPath: /data/uploads
+      volumes:
+        - name: uploads
+          persistentVolumeClaim:
+            claimName: elcorp-uploads
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: elcorp-api
+  namespace: elcorp
+spec:
+  selector:
+    app: elcorp-api
+  ports:
+    - port: 80
+      targetPort: 8000
+  type: ClusterIP

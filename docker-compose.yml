@@ -1,0 +1,71 @@
+services:
+  api:
+    build: .
+    ports:
+      - "5000:5000"
+    env_file: .env
+    environment:
+      FLASK_ENV: development
+      DATABASE_URL: postgresql://elcorp:elcorp@postgres:5432/elcorp
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+    volumes:
+      - .:/app
+      - uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  worker:
+    build: .
+    command: celery -A app.celery_app:celery worker --loglevel=info -Q default,verification,email
+    env_file: .env
+    environment:
+      FLASK_ENV: development
+      DATABASE_URL: postgresql://elcorp:elcorp@postgres:5432/elcorp
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  beat:
+    build: .
+    command: celery -A app.celery_app:celery beat --loglevel=info
+    env_file: .env
+    environment:
+      FLASK_ENV: development
+      DATABASE_URL: postgresql://elcorp:elcorp@postgres:5432/elcorp
+      CELERY_BROKER_URL: redis://redis:6379/1
+    depends_on:
+      redis:
+        condition: service_started
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: elcorp
+      POSTGRES_USER: elcorp
+      POSTGRES_PASSWORD: elcorp
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U elcorp"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+volumes:
+  pgdata:
+  uploads:

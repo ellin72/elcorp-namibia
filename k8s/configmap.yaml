@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: elcorp-config
+  namespace: elcorp
+data:
+  FLASK_ENV: "production"
+  DATABASE_URL: "postgresql://elcorp:elcorp@postgres:5432/elcorp"
+  REDIS_URL: "redis://redis:6379/0"
+  CELERY_BROKER_URL: "redis://redis:6379/1"
+  CORS_ORIGINS: "https://app.elcorp.na"
+  UPLOAD_FOLDER: "/data/uploads/kyc"
