@@ -1,0 +1,47 @@
+{% extends "merchant/base.html" %} {% block title %}Webhook Deliveries{%
+endblock %} {% block content %}
+<h2 style="margin-bottom: 1rem">Deliveries for {{ subscription_id[:8] }}…</h2>
+
+<a
+  href="{{ url_for('merchant_dashboard.webhooks') }}"
+  class="btn btn-primary"
+  style="margin-bottom: 1rem"
+  >&larr; Back</a
+>
+
+<div class="card">
+  {% if deliveries %}
+  <table>
+    <thead>
+      <tr>
+        <th>Event</th>
+        <th>Status</th>
+        <th>HTTP Code</th>
+        <th>Attempts</th>
+        <th>Date</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for d in deliveries %}
+      <tr>
+        <td>{{ d.event }}</td>
+        <td>
+          <span
+            class="badge {{ 'badge-completed' if d.success else 'badge-failed' }}"
+            >{{ 'OK' if d.success else 'FAIL' }}</span
+          >
+        </td>
+        <td>{{ d.response_status or '-' }}</td>
+        <td>{{ d.attempts }}</td>
+        <td>
+          {{ d.created_at.strftime('%Y-%m-%d %H:%M') if d.created_at else '-' }}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p style="color: #888">No deliveries yet.</p>
+  {% endif %}
+</div>
+{% endblock %}

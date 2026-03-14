@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import functools
+import uuid
 from datetime import datetime, timedelta, timezone
 
 import jwt
@@ -28,6 +29,7 @@ def create_refresh_token(user_id: str) -> str:
     payload = {
         "sub": user_id,
         "type": "refresh",
+        "jti": str(uuid.uuid4()),
         "iat": now,
         "exp": now + timedelta(seconds=current_app.config["JWT_REFRESH_TOKEN_EXPIRES"]),
     }
@@ -41,6 +43,18 @@ def decode_token(token: str) -> dict:
         raise UnauthorizedError("Token has expired")
     except jwt.InvalidTokenError:
         raise UnauthorizedError("Invalid token")
+
+
+def is_token_revoked(jti: str) -> bool:
+    """Check if a refresh token JTI has been revoked."""
+    from app.models.revoked_token import RevokedToken
+    return RevokedToken.is_revoked(jti)
+
+
+def revoke_token(jti: str) -> None:
+    """Revoke a refresh token by its JTI."""
+    from app.models.revoked_token import RevokedToken
+    RevokedToken.revoke(jti)
 
 
 def _get_bearer_token() -> str:

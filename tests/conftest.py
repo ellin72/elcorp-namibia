@@ -10,6 +10,16 @@ from app import create_app
 from app.extensions import db as _db
 from app.services.identity_service import seed_roles
 
+# Ensure all models are registered with SQLAlchemy before create_all
+import app.models.user  # noqa: F401
+import app.models.payment  # noqa: F401
+import app.models.merchant  # noqa: F401
+import app.models.audit  # noqa: F401
+import app.models.kyc  # noqa: F401
+import app.models.permission  # noqa: F401
+import app.models.revoked_token  # noqa: F401
+import app.models.webhook  # noqa: F401
+
 
 @pytest.fixture(scope="session")
 def app():
@@ -29,7 +39,7 @@ def _clean_tables(app):
     with app.app_context():
         _db.session.rollback()
         for table in reversed(_db.metadata.sorted_tables):
-            if table.name != "roles":
+            if table.name not in ("roles", "permissions", "role_permissions"):
                 _db.session.execute(table.delete())
         _db.session.commit()
 

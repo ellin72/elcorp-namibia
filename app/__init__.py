@@ -40,14 +40,42 @@ def create_app(config_name: str | None = None) -> Flask:
 
     # ---------- blueprints ----------
     from app.api.v1 import api_v1_bp  # noqa: E402
+    from app.merchant_dashboard import merchant_dashboard_bp
 
     app.register_blueprint(api_v1_bp, url_prefix="/api/v1")
+    app.register_blueprint(merchant_dashboard_bp, url_prefix="/merchant")
+
+    # ---------- request logging middleware ----------
+    from app.middleware.logging_middleware import init_request_logging
+
+    init_request_logging(app)
+
+    # ---------- root route ----------
+    @app.route("/")
+    def index():
+        from flask import jsonify
+        return jsonify({
+            "service": "Elcorp Digital Identity & Payments API",
+            "version": "1.0.0",
+            "docs": "/api/v1/health",
+            "endpoints": {
+                "health": "/api/v1/health",
+                "auth": "/api/v1/auth/signup | /login | /refresh",
+                "identity": "/api/v1/me",
+                "kyc": "/api/v1/kyc/upload",
+                "payments": "/api/v1/payments",
+                "merchants": "/api/v1/merchants",
+                "webhooks": "/api/v1/webhooks",
+                "admin": "/api/v1/admin/stats",
+                "merchant_dashboard": "/merchant/",
+            },
+        })
 
     # ---------- monitoring ----------
     if app.config.get("PROMETHEUS_ENABLED"):
-        from prometheus_flask_exporter import PrometheusMetrics
+        from app.metrics import init_metrics
 
-        PrometheusMetrics(app)
+        init_metrics(app)
 
     # ---------- error handlers ----------
     _register_error_handlers(app)

@@ -25,6 +25,18 @@ def update_current_user():
     return jsonify(user.to_dict(include_sensitive=True))
 
 
+@api_v1_bp.route("/me/permissions", methods=["GET"])
+@jwt_required
+def get_my_permissions():
+    """Return the flattened permission set for the current user."""
+    user = identity_service.get_user(g.current_user_id)
+    perms: set[str] = set()
+    for role in user.roles:
+        for perm in getattr(role, "permissions", []):
+            perms.add(perm.codename)
+    return jsonify({"permissions": sorted(perms)})
+
+
 @api_v1_bp.route("/users/<user_id>", methods=["GET"])
 @jwt_required
 @roles_required("admin", "staff")

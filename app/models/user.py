@@ -45,6 +45,12 @@ class User(db.Model):
     date_of_birth: datetime | None = db.Column(db.Date, nullable=True)
     national_id: str = db.Column(db.String(100), default="")
     address: str = db.Column(db.Text, default="")
+    city: str = db.Column(db.String(100), default="")
+    region: str = db.Column(db.String(100), default="")
+    country: str = db.Column(db.String(3), default="NA")  # ISO 3166 alpha-2
+    postal_code: str = db.Column(db.String(20), default="")
+    avatar_url: str = db.Column(db.String(500), default="")
+    preferred_language: str = db.Column(db.String(10), default="en")
 
     is_active: bool = db.Column(db.Boolean, default=True)
     is_verified: bool = db.Column(db.Boolean, default=False)
@@ -104,6 +110,12 @@ class User(db.Model):
                     "date_of_birth": str(self.date_of_birth) if self.date_of_birth else None,
                     "national_id": self.national_id,
                     "address": self.address,
+                    "city": self.city,
+                    "region": self.region,
+                    "country": self.country,
+                    "postal_code": self.postal_code,
+                    "avatar_url": self.avatar_url,
+                    "preferred_language": self.preferred_language,
                 }
             )
         return data

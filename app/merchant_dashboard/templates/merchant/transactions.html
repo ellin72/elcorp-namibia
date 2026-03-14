@@ -1,0 +1,50 @@
+{% extends "merchant/base.html" %} {% block title %}Transactions{% endblock %}
+{% block content %}
+<h2 style="margin-bottom: 1rem">Transactions</h2>
+
+<div class="card">
+  {% if pagination.items %}
+  <table>
+    <thead>
+      <tr>
+        <th>Reference</th>
+        <th>Amount</th>
+        <th>Currency</th>
+        <th>Status</th>
+        <th>Gateway Ref</th>
+        <th>Date</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in pagination.items %}
+      <tr>
+        <td>{{ p.reference }}</td>
+        <td>{{ "%.2f"|format(p.amount / 100) }}</td>
+        <td>{{ p.currency }}</td>
+        <td><span class="badge badge-{{ p.status }}">{{ p.status }}</span></td>
+        <td>{{ p.gateway_ref or '-' }}</td>
+        <td>
+          {{ p.created_at.strftime('%Y-%m-%d %H:%M') if p.created_at else '-' }}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="pagination">
+    {% for p in pagination.iter_pages(left_edge=1, right_edge=1, left_current=1,
+    right_current=2) %} {% if p %}
+    <a
+      href="?page={{ p }}"
+      class="{{ 'active' if p == pagination.page else '' }}"
+      >{{ p }}</a
+    >
+    {% else %}
+    <span>…</span>
+    {% endif %} {% endfor %}
+  </div>
+  {% else %}
+  <p style="color: #888">No transactions found.</p>
+  {% endif %}
+</div>
+{% endblock %}

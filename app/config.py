@@ -48,6 +48,16 @@ class _Base:
     # Sandbox payment gateway
     PAYMENT_GATEWAY_URL = os.getenv("PAYMENT_GATEWAY_URL", "")
     PAYMENT_GATEWAY_API_KEY = os.getenv("PAYMENT_GATEWAY_API_KEY", "")
+    PAYMENT_GATEWAY_PROVIDER = os.getenv("PAYMENT_GATEWAY_PROVIDER", "sandbox")
+
+    # PayToday
+    PAYTODAY_API_URL = os.getenv("PAYTODAY_API_URL", "")
+    PAYTODAY_API_KEY = os.getenv("PAYTODAY_API_KEY", "")
+
+    # FNB Namibia
+    FNB_API_URL = os.getenv("FNB_API_URL", "")
+    FNB_API_KEY = os.getenv("FNB_API_KEY", "")
+    FNB_MERCHANT_CODE = os.getenv("FNB_MERCHANT_CODE", "")
 
 
 class DevelopmentConfig(_Base):
@@ -55,6 +65,7 @@ class DevelopmentConfig(_Base):
     SQLALCHEMY_DATABASE_URI = os.getenv(
         "DATABASE_URL", "sqlite:///elcorp_dev.db"
     )
+    RATELIMIT_STORAGE_URI = os.getenv("RATELIMIT_STORAGE_URI", "memory://")
 
 
 class TestingConfig(_Base):

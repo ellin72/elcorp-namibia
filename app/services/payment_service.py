@@ -75,6 +75,13 @@ def create_payment(
     db.session.add(payment)
     db.session.commit()
 
+    # Prometheus metric
+    try:
+        from app.metrics import PAYMENT_CREATED
+        PAYMENT_CREATED.labels(currency=currency, status="pending").inc()
+    except Exception:
+        pass
+
     log_event(
         "payment.created",
         user_id=user_id,
@@ -99,11 +106,30 @@ def process_payment(payment_id: str) -> Payment:
     payment.status = "processing"
     db.session.commit()
 
-    # Simulate instant gateway approval for sandbox
-    payment.status = "completed"
-    payment.gateway_ref = f"gw_{uuid.uuid4().hex[:12]}"
-    payment.completed_at = datetime.now(timezone.utc)
+    # Use the pluggable gateway adapter
+    from app.gateways.payment_gateway import get_gateway
+    gw_result = get_gateway().charge(
+        amount=payment.amount,
+        currency=payment.currency,
+        reference=payment.reference,
+        token=payment.payment_token_id,
+    )
+
+    if gw_result.success:
+        payment.status = "completed"
+        payment.gateway_ref = gw_result.gateway_ref
+        payment.completed_at = datetime.now(timezone.utc)
+    else:
+        payment.status = "failed"
+        payment.failure_reason = gw_result.raw.get("error", "Gateway declined")
     db.session.commit()
+
+    # Prometheus metric
+    try:
+        from app.metrics import PAYMENT_PROCESSED
+        PAYMENT_PROCESSED.labels(outcome="completed").inc()
+    except Exception:
+        pass
 
     log_event(
         "payment.completed",
@@ -113,6 +139,14 @@ def process_payment(payment_id: str) -> Payment:
         detail={"gateway_ref": payment.gateway_ref},
     )
     logger.info("payment.completed", payment_id=payment.id)
+
+    # Dispatch webhook to merchant
+    try:
+        from app.services.webhook_service import dispatch_event
+        dispatch_event(payment.merchant_id, "payment.completed", payment.to_dict())
+    except Exception:
+        logger.warning("webhook.dispatch_failed", payment_id=payment.id)
+
     return payment
 
 

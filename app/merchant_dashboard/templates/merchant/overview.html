@@ -1,0 +1,49 @@
+{% extends "merchant/base.html" %} {% block title %}Overview{% endblock %} {%
+block content %}
+<h2 style="margin-bottom: 1rem">Welcome, {{ merchant.name }}</h2>
+
+<div class="stats">
+  <div class="card stat">
+    <div class="value">{{ total_payments }}</div>
+    <div class="label">Total Payments</div>
+  </div>
+  <div class="card stat">
+    <div class="value">{{ completed }}</div>
+    <div class="label">Completed</div>
+  </div>
+  <div class="card stat">
+    <div class="value">NAD {{ "%.2f"|format(total_volume / 100) }}</div>
+    <div class="label">Total Volume</div>
+  </div>
+</div>
+
+<div class="card">
+  <h3 style="margin-bottom: 0.8rem">Recent Transactions</h3>
+  {% if recent %}
+  <table>
+    <thead>
+      <tr>
+        <th>Reference</th>
+        <th>Amount</th>
+        <th>Status</th>
+        <th>Date</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in recent %}
+      <tr>
+        <td>{{ p.reference }}</td>
+        <td>NAD {{ "%.2f"|format(p.amount / 100) }}</td>
+        <td><span class="badge badge-{{ p.status }}">{{ p.status }}</span></td>
+        <td>
+          {{ p.created_at.strftime('%Y-%m-%d %H:%M') if p.created_at else '-' }}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p style="color: #888">No transactions yet.</p>
+  {% endif %}
+</div>
+{% endblock %}

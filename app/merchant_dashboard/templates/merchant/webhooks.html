@@ -1,0 +1,42 @@
+{% extends "merchant/base.html" %} {% block title %}Webhooks{% endblock %} {%
+block content %}
+<h2 style="margin-bottom: 1rem">Webhook Subscriptions</h2>
+
+<div class="card">
+  {% if subscriptions %}
+  <table>
+    <thead>
+      <tr>
+        <th>URL</th>
+        <th>Events</th>
+        <th>Active</th>
+        <th>Created</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in subscriptions %}
+      <tr>
+        <td>{{ s.url }}</td>
+        <td>{{ s.events }}</td>
+        <td>{{ 'Yes' if s.is_active else 'No' }}</td>
+        <td>
+          {{ s.created_at.strftime('%Y-%m-%d') if s.created_at else '-' }}
+        </td>
+        <td>
+          <a
+            href="{{ url_for('merchant_dashboard.webhook_deliveries', sub_id=s.id) }}"
+            >Deliveries</a
+          >
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p style="color: #888">
+    No webhook subscriptions configured. Use the API to create one.
+  </p>
+  {% endif %}
+</div>
+{% endblock %}

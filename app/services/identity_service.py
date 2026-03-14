@@ -47,7 +47,11 @@ def get_user(user_id: str) -> User:
 
 def update_profile(user_id: str, data: dict) -> User:
     user = get_user(user_id)
-    allowed = {"first_name", "last_name", "phone", "date_of_birth", "national_id", "address"}
+    allowed = {
+        "first_name", "last_name", "phone", "date_of_birth",
+        "national_id", "address", "city", "region", "country",
+        "postal_code", "avatar_url", "preferred_language",
+    }
     for key in allowed:
         if key in data:
             setattr(user, key, data[key])
@@ -81,7 +85,7 @@ def authenticate(email: str, password: str) -> User:
 
 
 def seed_roles() -> None:
-    """Create default roles if they don't exist."""
+    """Create default roles and permissions if they don't exist."""
     for name, desc in [
         ("admin", "System administrator"),
         ("staff", "Staff / reviewer"),
@@ -89,4 +93,20 @@ def seed_roles() -> None:
     ]:
         if not Role.query.filter_by(name=name).first():
             db.session.add(Role(name=name, description=desc))
+    db.session.commit()
+
+    # Seed permissions
+    from app.models.permission import Permission, DEFAULT_PERMISSIONS, ROLE_DEFAULTS
+
+    for codename, description in DEFAULT_PERMISSIONS:
+        if not Permission.query.filter_by(codename=codename).first():
+            db.session.add(Permission(codename=codename, description=description))
+    db.session.commit()
+
+    # Map permissions to roles
+    for role_name, perm_codes in ROLE_DEFAULTS.items():
+        role = Role.query.filter_by(name=role_name).first()
+        if role:
+            perms = Permission.query.filter(Permission.codename.in_(perm_codes)).all()
+            role.permissions = perms
     db.session.commit()
