@@ -1,0 +1,86 @@
+{% extends "ui/base.html" %} {% block title %}System Health — Elcorp{% endblock
+%} {% block content %}
+<div class="container">
+  <div class="page-header flex-between">
+    <div>
+      <h1>System Health</h1>
+      <p>Live status of all platform services</p>
+    </div>
+    <button class="btn btn-outline" onclick="loadHealth()">Refresh</button>
+  </div>
+
+  <div id="alert" class="alert"></div>
+
+  <!-- Overall -->
+  <div class="stats-grid">
+    <div class="stat-card" id="overallCard">
+      <div class="value" id="overallStatus">…</div>
+      <div class="label">Overall Status</div>
+    </div>
+    <div class="stat-card">
+      <div class="value" id="timestamp">—</div>
+      <div class="label">Last Check</div>
+    </div>
+  </div>
+
+  <!-- Service Cards -->
+  <div class="health-grid" id="healthGrid">
+    <div class="health-card"><h4>Loading…</h4></div>
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script>
+  async function loadHealth() {
+    try {
+      const data = await API.health.ready();
+      const checks = data.checks || {};
+
+      document.getElementById("overallStatus").textContent =
+        data.status || "unknown";
+      const card = document.getElementById("overallCard");
+      card.className =
+        "stat-card " + (data.status === "healthy" ? "success" : "accent");
+      document.getElementById("timestamp").textContent = formatDate(
+        data.timestamp || new Date().toISOString(),
+      );
+
+      const grid = document.getElementById("healthGrid");
+      const keys = Object.keys(checks);
+      if (keys.length === 0) {
+        grid.innerHTML =
+          '<div class="health-card"><h4>No checks available</h4></div>';
+        return;
+      }
+      grid.innerHTML = keys
+        .map((k) => {
+          const c = checks[k];
+          const status = c.status || "unknown";
+          const cls =
+            status === "ok"
+              ? "ok"
+              : status === "unavailable"
+                ? "unavailable"
+                : "error";
+          const details = [];
+          if (c.latency_ms !== undefined)
+            details.push("Latency: " + c.latency_ms + "ms");
+          if (c.message) details.push(c.message);
+          if (c.error) details.push("Error: " + c.error);
+          return `
+        <div class="health-card ${cls}">
+          <h4>${escapeHtml(k)}</h4>
+          <span class="badge badge-${cls}">${escapeHtml(status)}</span>
+          ${details.length ? '<p class="detail mt-1">' + details.map(escapeHtml).join("<br>") + "</p>" : ""}
+        </div>
+      `;
+        })
+        .join("");
+    } catch (err) {
+      showAlert("alert", "Failed to fetch health data", "error");
+    }
+  }
+
+  loadHealth();
+  setInterval(loadHealth, 15000);
+</script>
+{% endblock %}

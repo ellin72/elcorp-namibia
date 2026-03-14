@@ -1,0 +1,231 @@
+{% extends "ui/base.html" %} {% block title %}Payments — Elcorp{% endblock %} {%
+block content %}
+<div class="container">
+  <div class="page-header flex-between">
+    <div>
+      <h1>Payments</h1>
+      <p>Create, view, and process payments</p>
+    </div>
+    <button
+      class="btn btn-primary"
+      onclick="document.getElementById('createModal').classList.add('show')"
+    >
+      New Payment
+    </button>
+  </div>
+
+  <div id="alert" class="alert"></div>
+
+  <div class="card">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Amount</th>
+            <th>Currency</th>
+            <th>Status</th>
+            <th>Description</th>
+            <th>Date</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="paymentsBody">
+          <tr>
+            <td colspan="7" class="text-muted text-sm">Loading…</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Create Payment Modal -->
+<div class="modal-overlay" id="createModal">
+  <div class="modal">
+    <h3>Create Payment</h3>
+    <div id="createAlert" class="alert"></div>
+    <form id="createForm">
+      <div class="form-row">
+        <div class="form-group">
+          <label for="amount">Amount (N$)</label>
+          <input type="number" id="amount" step="0.01" min="0.01" required />
+        </div>
+        <div class="form-group">
+          <label for="currency">Currency</label>
+          <select id="currency">
+            <option value="NAD">NAD</option>
+            <option value="USD">USD</option>
+            <option value="ZAR">ZAR</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="description">Description</label>
+        <input type="text" id="description" placeholder="Payment for…" />
+      </div>
+      <div class="form-group">
+        <label for="token_id">Payment Token (optional)</label>
+        <input
+          type="text"
+          id="token_id"
+          placeholder="Token ID from /payments/tokens"
+        />
+      </div>
+      <div class="modal-actions">
+        <button
+          type="button"
+          class="btn btn-outline"
+          onclick="
+            document.getElementById('createModal').classList.remove('show')
+          "
+        >
+          Cancel
+        </button>
+        <button type="submit" class="btn btn-primary" id="createBtn">
+          Create
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Token Modal -->
+<div class="modal-overlay" id="tokenModal">
+  <div class="modal">
+    <h3>Create Payment Token</h3>
+    <div id="tokenAlert" class="alert"></div>
+    <form id="tokenForm">
+      <div class="form-group">
+        <label for="card_number">Card Number</label>
+        <input
+          type="text"
+          id="card_number"
+          required
+          placeholder="4111 1111 1111 1111"
+        />
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="expiry">Expiry</label>
+          <input type="text" id="expiry" required placeholder="12/26" />
+        </div>
+        <div class="form-group">
+          <label for="cvv">CVV</label>
+          <input type="text" id="cvv" required placeholder="123" />
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button
+          type="button"
+          class="btn btn-outline"
+          onclick="
+            document.getElementById('tokenModal').classList.remove('show')
+          "
+        >
+          Cancel
+        </button>
+        <button type="submit" class="btn btn-primary" id="tokenBtn">
+          Tokenise
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script>
+  async function loadPayments() {
+    try {
+      const data = await API.payments.list();
+      const list = data.payments || [];
+      const tbody = document.getElementById("paymentsBody");
+      if (list.length === 0) {
+        tbody.innerHTML =
+          '<tr><td colspan="7" class="empty-state text-sm">No payments yet</td></tr>';
+      } else {
+        tbody.innerHTML = list
+          .map(
+            (p) => `
+        <tr>
+          <td><code>${escapeHtml(p.id?.toString().slice(0, 8) || "")}</code></td>
+          <td>N$ ${escapeHtml(p.amount?.toString() || "0")}</td>
+          <td>${escapeHtml(p.currency || "NAD")}</td>
+          <td><span class="badge ${badgeClass(p.status)}">${escapeHtml(p.status || "")}</span></td>
+          <td>${escapeHtml(p.description || "—")}</td>
+          <td>${formatDate(p.created_at)}</td>
+          <td>${p.status === "pending" ? `<button class="btn btn-sm btn-success" onclick="processPayment('${p.id}')">Process</button>` : ""}</td>
+        </tr>
+      `,
+          )
+          .join("");
+      }
+    } catch (err) {
+      showAlert("alert", "Failed to load payments", "error");
+    }
+  }
+
+  async function processPayment(id) {
+    try {
+      await API.payments.process(id);
+      showAlert("alert", "Payment processed", "success");
+      loadPayments();
+    } catch (err) {
+      showAlert("alert", err.error || "Processing failed", "error");
+    }
+  }
+
+  document
+    .getElementById("createForm")
+    .addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById("createBtn");
+      btn.disabled = true;
+      try {
+        const payload = {
+          amount: parseFloat(document.getElementById("amount").value),
+          currency: document.getElementById("currency").value,
+          description: document.getElementById("description").value,
+        };
+        const tok = document.getElementById("token_id").value.trim();
+        if (tok) payload.token_id = tok;
+        await API.payments.create(payload);
+        document.getElementById("createModal").classList.remove("show");
+        showAlert("alert", "Payment created", "success");
+        loadPayments();
+      } catch (err) {
+        showAlert("createAlert", err.error || "Creation failed", "error");
+      }
+      btn.disabled = false;
+    });
+
+  document.getElementById("tokenForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById("tokenBtn");
+    btn.disabled = true;
+    try {
+      const data = await API.payments.createToken({
+        card_number: document.getElementById("card_number").value,
+        expiry: document.getElementById("expiry").value,
+        cvv: document.getElementById("cvv").value,
+      });
+      document.getElementById("tokenModal").classList.remove("show");
+      showAlert(
+        "alert",
+        "Token created: " + (data.token_id || data.id || "OK"),
+        "success",
+      );
+    } catch (err) {
+      showAlert("tokenAlert", err.error || "Tokenisation failed", "error");
+    }
+    btn.disabled = false;
+  });
+
+  (async () => {
+    if (!API.auth.isLoggedIn()) {
+      window.location.href = "/ui/login";
+      return;
+    }
+    loadPayments();
+  })();
+</script>
+{% endblock %}

@@ -1,0 +1,73 @@
+{% extends "ui/base.html" %} {% block title %}Elcorp Namibia — Digital Identity
+& Payments{% endblock %} {% block content %}
+<div class="container">
+  <div class="hero">
+    <h1>Digital Identity & Payments</h1>
+    <p>
+      Namibia's secure platform for KYC verification, digital payments, and
+      merchant services — built for speed, privacy, and compliance.
+    </p>
+    <div class="cta-group">
+      <a href="/ui/signup" class="btn btn-primary guest-only">Get Started</a>
+      <a href="/ui/login" class="btn btn-outline guest-only">Sign In</a>
+      <a
+        href="/ui/dashboard"
+        class="btn btn-primary auth-only"
+        style="display: none"
+        >Go to Dashboard</a
+      >
+    </div>
+  </div>
+
+  <div class="features">
+    <div class="feature-card">
+      <div class="icon blue">&#128100;</div>
+      <h3>Digital Identity</h3>
+      <p>
+        Secure user profiles with KYC document verification and role-based
+        access control.
+      </p>
+    </div>
+    <div class="feature-card">
+      <div class="icon green">&#128179;</div>
+      <h3>Payment Processing</h3>
+      <p>
+        Tokenised payments with multi-gateway support — sandbox, PayToday, and
+        FNB adapters.
+      </p>
+    </div>
+    <div class="feature-card">
+      <div class="icon purple">&#128737;</div>
+      <h3>KYC Verification</h3>
+      <p>
+        Upload and review identity documents with an admin workflow for
+        approvals.
+      </p>
+    </div>
+    <div class="feature-card">
+      <div class="icon red">&#128274;</div>
+      <h3>Enterprise Security</h3>
+      <p>
+        JWT token rotation, bcrypt hashing, Fernet encryption, and rate limiting
+        built in.
+      </p>
+    </div>
+    <div class="feature-card">
+      <div class="icon yellow">&#127962;</div>
+      <h3>Merchant Services</h3>
+      <p>
+        Onboard merchants, manage settlements, and configure webhook
+        integrations.
+      </p>
+    </div>
+    <div class="feature-card">
+      <div class="icon teal">&#128200;</div>
+      <h3>System Monitoring</h3>
+      <p>
+        Real-time health checks, Prometheus metrics, and structured logging with
+        correlation IDs.
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}

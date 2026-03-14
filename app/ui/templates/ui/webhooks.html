@@ -1,0 +1,191 @@
+{% extends "ui/base.html" %} {% block title %}Webhooks — Elcorp{% endblock %} {%
+block content %}
+<div class="container">
+  <div class="page-header flex-between">
+    <div>
+      <h1>Webhook Subscriptions</h1>
+      <p>Manage event subscriptions for merchants</p>
+    </div>
+    <button
+      class="btn btn-primary"
+      onclick="document.getElementById('createModal').classList.add('show')"
+    >
+      New Subscription
+    </button>
+  </div>
+
+  <div id="alert" class="alert"></div>
+
+  <div class="card">
+    <div class="form-group" style="max-width: 300px">
+      <label for="merchantSelect">Merchant</label>
+      <select id="merchantSelect" onchange="loadWebhooks()">
+        <option value="">Select a merchant…</option>
+      </select>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>URL</th>
+            <th>Events</th>
+            <th>Active</th>
+            <th>Created</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="webhooksBody">
+          <tr>
+            <td colspan="5" class="text-muted text-sm">
+              Select a merchant above
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Create Modal -->
+<div class="modal-overlay" id="createModal">
+  <div class="modal">
+    <h3>New Webhook Subscription</h3>
+    <div id="createAlert" class="alert"></div>
+    <form id="createForm">
+      <div class="form-group">
+        <label for="wh_merchant_id">Merchant ID</label>
+        <input type="text" id="wh_merchant_id" required />
+      </div>
+      <div class="form-group">
+        <label for="wh_url">Callback URL</label>
+        <input type="text" id="wh_url" required placeholder="https://..." />
+      </div>
+      <div class="form-group">
+        <label for="wh_events">Events (comma-separated)</label>
+        <input
+          type="text"
+          id="wh_events"
+          placeholder="payment.completed,payment.failed"
+          required
+        />
+      </div>
+      <div class="form-group">
+        <label for="wh_secret">Secret Key</label>
+        <input
+          type="text"
+          id="wh_secret"
+          required
+          placeholder="Shared HMAC secret"
+        />
+      </div>
+      <div class="modal-actions">
+        <button
+          type="button"
+          class="btn btn-outline"
+          onclick="
+            document.getElementById('createModal').classList.remove('show')
+          "
+        >
+          Cancel
+        </button>
+        <button type="submit" class="btn btn-primary" id="createBtn">
+          Create
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script>
+  async function loadMerchantOptions() {
+    try {
+      const data = await API.merchants.list();
+      const sel = document.getElementById("merchantSelect");
+      (data.merchants || []).forEach((m) => {
+        const opt = document.createElement("option");
+        opt.value = m.id;
+        opt.textContent = m.business_name + " (" + m.id + ")";
+        sel.appendChild(opt);
+      });
+    } catch {}
+  }
+
+  async function loadWebhooks() {
+    const mid = document.getElementById("merchantSelect").value;
+    const tbody = document.getElementById("webhooksBody");
+    if (!mid) {
+      tbody.innerHTML =
+        '<tr><td colspan="5" class="text-muted text-sm">Select a merchant above</td></tr>';
+      return;
+    }
+    try {
+      const data = await API.webhooks.list(mid);
+      const list = data.subscriptions || data.webhooks || [];
+      if (list.length === 0) {
+        tbody.innerHTML =
+          '<tr><td colspan="5" class="empty-state text-sm">No subscriptions</td></tr>';
+      } else {
+        tbody.innerHTML = list
+          .map(
+            (w) => `
+        <tr>
+          <td class="text-sm">${escapeHtml(w.url || "")}</td>
+          <td class="text-sm">${escapeHtml((w.events || []).join(", "))}</td>
+          <td><span class="badge ${w.is_active ? "badge-ok" : "badge-failed"}">${w.is_active ? "Active" : "Inactive"}</span></td>
+          <td>${formatDate(w.created_at)}</td>
+          <td><button class="btn btn-sm btn-danger" onclick="removeWebhook('${w.id}')">Delete</button></td>
+        </tr>
+      `,
+          )
+          .join("");
+      }
+    } catch (err) {
+      showAlert("alert", "Failed to load webhooks", "error");
+    }
+  }
+
+  async function removeWebhook(id) {
+    if (!confirm("Delete this subscription?")) return;
+    try {
+      await API.webhooks.remove(id);
+      showAlert("alert", "Subscription deleted", "success");
+      loadWebhooks();
+    } catch (err) {
+      showAlert("alert", err.error || "Delete failed", "error");
+    }
+  }
+
+  document
+    .getElementById("createForm")
+    .addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById("createBtn");
+      btn.disabled = true;
+      try {
+        await API.webhooks.create({
+          merchant_id: document.getElementById("wh_merchant_id").value,
+          url: document.getElementById("wh_url").value,
+          events: document
+            .getElementById("wh_events")
+            .value.split(",")
+            .map((s) => s.trim()),
+          secret: document.getElementById("wh_secret").value,
+        });
+        document.getElementById("createModal").classList.remove("show");
+        showAlert("alert", "Subscription created", "success");
+        loadWebhooks();
+      } catch (err) {
+        showAlert("createAlert", err.error || "Creation failed", "error");
+      }
+      btn.disabled = false;
+    });
+
+  (async () => {
+    if (!API.auth.isLoggedIn()) {
+      window.location.href = "/ui/login";
+      return;
+    }
+    loadMerchantOptions();
+  })();
+</script>
+{% endblock %}

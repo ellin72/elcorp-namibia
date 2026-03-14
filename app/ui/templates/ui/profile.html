@@ -1,0 +1,144 @@
+{% extends "ui/base.html" %} {% block title %}Profile — Elcorp{% endblock %} {%
+block content %}
+<div class="container" style="max-width: 700px">
+  <div class="page-header">
+    <h1>My Profile</h1>
+    <p>View and update your personal information</p>
+  </div>
+
+  <div id="alert" class="alert"></div>
+
+  <div class="card">
+    <form id="profileForm">
+      <div class="form-row">
+        <div class="form-group">
+          <label for="first_name">First Name</label>
+          <input type="text" id="first_name" />
+        </div>
+        <div class="form-group">
+          <label for="last_name">Last Name</label>
+          <input type="text" id="last_name" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input type="email" id="email" disabled />
+      </div>
+      <div class="form-group">
+        <label for="phone">Phone</label>
+        <input type="tel" id="phone" />
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="city">City</label>
+          <input type="text" id="city" />
+        </div>
+        <div class="form-group">
+          <label for="region">Region</label>
+          <input type="text" id="region" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="country">Country</label>
+          <input type="text" id="country" />
+        </div>
+        <div class="form-group">
+          <label for="postal_code">Postal Code</label>
+          <input type="text" id="postal_code" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="preferred_language">Preferred Language</label>
+        <select id="preferred_language">
+          <option value="en">English</option>
+          <option value="af">Afrikaans</option>
+          <option value="de">German</option>
+          <option value="osh">Oshiwambo</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary" id="saveBtn">
+        Save Changes
+      </button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h3>Roles & Permissions</h3>
+    <div id="rolesSection" class="text-sm text-muted">Loading…</div>
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script>
+  (async () => {
+    if (!API.auth.isLoggedIn()) {
+      window.location.href = "/ui/login";
+      return;
+    }
+    try {
+      const data = await API.identity.getMe();
+      const u = data.user || data;
+      const fields = [
+        "first_name",
+        "last_name",
+        "email",
+        "phone",
+        "city",
+        "region",
+        "country",
+        "postal_code",
+        "preferred_language",
+      ];
+      fields.forEach((f) => {
+        const el = document.getElementById(f);
+        if (el && u[f]) el.value = u[f];
+      });
+
+      // Permissions
+      const perms = await API.identity.getPermissions().catch(() => null);
+      const rolesDiv = document.getElementById("rolesSection");
+      const roles = u.roles || [];
+      const permList = perms?.permissions || [];
+      rolesDiv.innerHTML = `
+      <p><strong>Roles:</strong> ${roles.map((r) => `<span class="badge badge-ok">${escapeHtml(r)}</span>`).join(" ") || "user"}</p>
+      ${permList.length ? '<p class="mt-1"><strong>Permissions:</strong> ' + permList.map((p) => `<span class="badge badge-processing">${escapeHtml(p)}</span>`).join(" ") + "</p>" : ""}
+    `;
+    } catch (err) {
+      showAlert("alert", "Failed to load profile", "error");
+    }
+  })();
+
+  document
+    .getElementById("profileForm")
+    .addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById("saveBtn");
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Saving…';
+      try {
+        const payload = {};
+        [
+          "first_name",
+          "last_name",
+          "phone",
+          "city",
+          "region",
+          "country",
+          "postal_code",
+          "preferred_language",
+        ].forEach((f) => {
+          const v = document.getElementById(f).value;
+          if (v) payload[f] = v;
+        });
+        const data = await API.identity.updateMe(payload);
+        API.auth.setUser(data.user || data);
+        updateNav();
+        showAlert("alert", "Profile updated", "success");
+      } catch (err) {
+        showAlert("alert", err.error || "Update failed", "error");
+      }
+      btn.disabled = false;
+      btn.textContent = "Save Changes";
+    });
+</script>
+{% endblock %}

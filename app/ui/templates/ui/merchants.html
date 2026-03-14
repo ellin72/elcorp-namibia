@@ -1,0 +1,173 @@
+{% extends "ui/base.html" %} {% block title %}Merchants — Elcorp{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="page-header flex-between">
+    <div>
+      <h1>Merchants</h1>
+      <p>Manage merchant accounts and onboarding</p>
+    </div>
+    <button
+      class="btn btn-primary"
+      onclick="document.getElementById('createModal').classList.add('show')"
+    >
+      Onboard Merchant
+    </button>
+  </div>
+
+  <div id="alert" class="alert"></div>
+
+  <div class="card">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Business Type</th>
+            <th>Status</th>
+            <th>Webhook URL</th>
+            <th>Created</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="merchantsBody">
+          <tr>
+            <td colspan="6" class="text-muted text-sm">Loading…</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Create Modal -->
+<div class="modal-overlay" id="createModal">
+  <div class="modal">
+    <h3>Onboard Merchant</h3>
+    <div id="createAlert" class="alert"></div>
+    <form id="createForm">
+      <div class="form-group">
+        <label for="business_name">Business Name</label>
+        <input type="text" id="business_name" required />
+      </div>
+      <div class="form-group">
+        <label for="business_type">Business Type</label>
+        <select id="business_type">
+          <option value="retail">Retail</option>
+          <option value="services">Services</option>
+          <option value="hospitality">Hospitality</option>
+          <option value="technology">Technology</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="webhook_url">Webhook URL (optional)</label>
+        <input type="text" id="webhook_url" placeholder="https://..." />
+      </div>
+      <div class="form-group">
+        <label for="settlement_bank">Settlement Bank</label>
+        <input type="text" id="settlement_bank" placeholder="Bank name" />
+      </div>
+      <div class="form-group">
+        <label for="settlement_account">Settlement Account</label>
+        <input
+          type="text"
+          id="settlement_account"
+          placeholder="Account number"
+        />
+      </div>
+      <div class="modal-actions">
+        <button
+          type="button"
+          class="btn btn-outline"
+          onclick="
+            document.getElementById('createModal').classList.remove('show')
+          "
+        >
+          Cancel
+        </button>
+        <button type="submit" class="btn btn-primary" id="createBtn">
+          Onboard
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script>
+  async function loadMerchants() {
+    try {
+      const data = await API.merchants.list();
+      const list = data.merchants || [];
+      const tbody = document.getElementById("merchantsBody");
+      if (list.length === 0) {
+        tbody.innerHTML =
+          '<tr><td colspan="6" class="empty-state text-sm">No merchants yet</td></tr>';
+      } else {
+        tbody.innerHTML = list
+          .map(
+            (m) => `
+        <tr>
+          <td>${escapeHtml(m.business_name || "")}</td>
+          <td>${escapeHtml(m.business_type || "")}</td>
+          <td><span class="badge ${badgeClass(m.status)}">${escapeHtml(m.status || "")}</span></td>
+          <td class="text-sm">${escapeHtml(m.webhook_url || "—")}</td>
+          <td>${formatDate(m.created_at)}</td>
+          <td>
+            ${m.status === "active" ? `<button class="btn btn-sm btn-danger" onclick="deactivateMerchant('${m.id}')">Deactivate</button>` : ""}
+          </td>
+        </tr>
+      `,
+          )
+          .join("");
+      }
+    } catch (err) {
+      showAlert("alert", "Failed to load merchants", "error");
+    }
+  }
+
+  async function deactivateMerchant(id) {
+    if (!confirm("Deactivate this merchant?")) return;
+    try {
+      await API.merchants.deactivate(id);
+      showAlert("alert", "Merchant deactivated", "success");
+      loadMerchants();
+    } catch (err) {
+      showAlert("alert", err.error || "Deactivation failed", "error");
+    }
+  }
+
+  document
+    .getElementById("createForm")
+    .addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById("createBtn");
+      btn.disabled = true;
+      try {
+        await API.merchants.create({
+          business_name: document.getElementById("business_name").value,
+          business_type: document.getElementById("business_type").value,
+          webhook_url:
+            document.getElementById("webhook_url").value || undefined,
+          settlement_bank:
+            document.getElementById("settlement_bank").value || undefined,
+          settlement_account:
+            document.getElementById("settlement_account").value || undefined,
+        });
+        document.getElementById("createModal").classList.remove("show");
+        showAlert("alert", "Merchant onboarded", "success");
+        loadMerchants();
+      } catch (err) {
+        showAlert("createAlert", err.error || "Onboarding failed", "error");
+      }
+      btn.disabled = false;
+    });
+
+  (async () => {
+    if (!API.auth.isLoggedIn()) {
+      window.location.href = "/ui/login";
+      return;
+    }
+    loadMerchants();
+  })();
+</script>
+{% endblock %}

@@ -1,0 +1,171 @@
+{% extends "ui/base.html" %} {% block title %}Dashboard — Elcorp{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="page-header flex-between">
+    <div>
+      <h1 id="greeting">Dashboard</h1>
+      <p>Overview of your account activity</p>
+    </div>
+  </div>
+
+  <div id="alert" class="alert"></div>
+
+  <!-- Stats (admin only) -->
+  <div id="adminStats" class="stats-grid hidden"></div>
+
+  <!-- User summary cards -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="value" id="paymentCount">—</div>
+      <div class="label">Payments</div>
+    </div>
+    <div class="stat-card accent">
+      <div class="value" id="kycCount">—</div>
+      <div class="label">KYC Documents</div>
+    </div>
+    <div class="stat-card success">
+      <div class="value" id="userRoles">—</div>
+      <div class="label">Your Roles</div>
+    </div>
+  </div>
+
+  <!-- Recent Payments -->
+  <div class="card">
+    <div class="flex-between mb-1">
+      <h3>Recent Payments</h3>
+      <a href="/ui/payments" class="btn btn-sm btn-outline">View All</a>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Amount</th>
+            <th>Status</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody id="recentPayments">
+          <tr>
+            <td colspan="4" class="text-muted text-sm">Loading…</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Recent KYC -->
+  <div class="card">
+    <div class="flex-between mb-1">
+      <h3>KYC Documents</h3>
+      <a href="/ui/kyc" class="btn btn-sm btn-outline">Manage</a>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Type</th>
+            <th>Status</th>
+            <th>Submitted</th>
+          </tr>
+        </thead>
+        <tbody id="recentKyc">
+          <tr>
+            <td colspan="3" class="text-muted text-sm">Loading…</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script>
+  (async () => {
+    if (!API.auth.isLoggedIn()) {
+      window.location.href = "/ui/login";
+      return;
+    }
+
+    const user = API.auth.getUser();
+    document.getElementById("greeting").textContent =
+      "Welcome, " + (user?.first_name || "User");
+
+    // Load user data
+    try {
+      const [payments, kyc, me] = await Promise.all([
+        API.payments.list().catch(() => ({ payments: [] })),
+        API.kyc.list().catch(() => ({ documents: [] })),
+        API.identity.getMe().catch(() => null),
+      ]);
+
+      const payList = payments.payments || [];
+      const kycList = kyc.documents || [];
+      const roles = me?.user?.roles || me?.roles || [];
+
+      document.getElementById("paymentCount").textContent = payList.length;
+      document.getElementById("kycCount").textContent = kycList.length;
+      document.getElementById("userRoles").textContent =
+        roles.join(", ") || "user";
+
+      // Recent payments table
+      const payTbody = document.getElementById("recentPayments");
+      if (payList.length === 0) {
+        payTbody.innerHTML =
+          '<tr><td colspan="4" class="empty-state text-sm">No payments yet</td></tr>';
+      } else {
+        payTbody.innerHTML = payList
+          .slice(0, 5)
+          .map(
+            (p) => `
+        <tr>
+          <td><code>${escapeHtml(p.id?.toString().slice(0, 8) || "")}</code></td>
+          <td>N$ ${escapeHtml(p.amount?.toString() || "0")}</td>
+          <td><span class="badge ${badgeClass(p.status)}">${escapeHtml(p.status || "")}</span></td>
+          <td>${formatDate(p.created_at)}</td>
+        </tr>
+      `,
+          )
+          .join("");
+      }
+
+      // Recent KYC table
+      const kycTbody = document.getElementById("recentKyc");
+      if (kycList.length === 0) {
+        kycTbody.innerHTML =
+          '<tr><td colspan="3" class="empty-state text-sm">No documents uploaded</td></tr>';
+      } else {
+        kycTbody.innerHTML = kycList
+          .slice(0, 5)
+          .map(
+            (d) => `
+        <tr>
+          <td>${escapeHtml(d.document_type || "")}</td>
+          <td><span class="badge ${badgeClass(d.status)}">${escapeHtml(d.status || "")}</span></td>
+          <td>${formatDate(d.created_at)}</td>
+        </tr>
+      `,
+          )
+          .join("");
+      }
+
+      // Admin stats
+      if (roles.includes("admin")) {
+        try {
+          const stats = await API.admin.stats();
+          const s = stats.stats || stats;
+          const grid = document.getElementById("adminStats");
+          grid.classList.remove("hidden");
+          grid.innerHTML = `
+          <div class="stat-card"><div class="value">${s.total_users || 0}</div><div class="label">Total Users</div></div>
+          <div class="stat-card accent"><div class="value">${s.total_payments || 0}</div><div class="label">Total Payments</div></div>
+          <div class="stat-card success"><div class="value">${s.total_merchants || 0}</div><div class="label">Merchants</div></div>
+          <div class="stat-card"><div class="value">${s.pending_kyc || 0}</div><div class="label">Pending KYC</div></div>
+        `;
+        } catch {}
+      }
+    } catch (err) {
+      showAlert("alert", "Failed to load dashboard data", "error");
+    }
+  })();
+</script>
+{% endblock %}

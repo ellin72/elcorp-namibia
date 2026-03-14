@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{% block title %}Elcorp Namibia{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('ui.static', filename='css/app.css') }}"
+    />
+    {% block head %}{% endblock %}
+  </head>
+  <body>
+    <!-- Topbar -->
+    <div class="topbar">
+      <a class="brand" href="/ui/">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M12 2L2 7l10 5 10-5-10-5z" />
+          <path d="M2 17l10 5 10-5" />
+          <path d="M2 12l10 5 10-5" />
+        </svg>
+        Elcorp
+      </a>
+      <nav>
+        <a
+          href="/ui/"
+          class="{{ 'active' if active_page == 'landing' else '' }}"
+          >Home</a
+        >
+        <a
+          href="/ui/dashboard"
+          class="auth-only {{ 'active' if active_page == 'dashboard' else '' }}"
+          >Dashboard</a
+        >
+        <a
+          href="/ui/payments"
+          class="auth-only {{ 'active' if active_page == 'payments' else '' }}"
+          >Payments</a
+        >
+        <a
+          href="/ui/kyc"
+          class="auth-only {{ 'active' if active_page == 'kyc' else '' }}"
+          >KYC</a
+        >
+        <a
+          href="/ui/merchants"
+          class="auth-only {{ 'active' if active_page == 'merchants' else '' }}"
+          >Merchants</a
+        >
+        <a
+          href="/ui/admin"
+          class="auth-only {{ 'active' if active_page == 'admin' else '' }}"
+          >Admin</a
+        >
+        <a
+          href="/ui/health"
+          class="{{ 'active' if active_page == 'health' else '' }}"
+          >Health</a
+        >
+      </nav>
+      <div class="user-menu">
+        <a
+          href="/ui/login"
+          class="btn btn-sm btn-outline guest-only"
+          style="color: #fff; border-color: rgba(255, 255, 255, 0.3)"
+          >Sign In</a
+        >
+        <span class="auth-only" style="display: none">
+          <a
+            href="/ui/profile"
+            style="
+              color: rgba(255, 255, 255, 0.8);
+              display: flex;
+              align-items: center;
+              gap: 0.4rem;
+            "
+          >
+            <span class="avatar">?</span>
+            <span class="user-name"></span>
+          </a>
+        </span>
+        <a
+          href="#"
+          class="auth-only"
+          style="
+            display: none;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.8rem;
+            margin-left: 0.3rem;
+          "
+          onclick="
+            API.auth.logout().then(() => {
+              window.location.href = '/ui/';
+            })
+          "
+          >Logout</a
+        >
+      </div>
+    </div>
+
+    {% block content %}{% endblock %}
+
+    <script src="{{ url_for('ui.static', filename='js/api.js') }}"></script>
+    {% block scripts %}{% endblock %}
+  </body>
+</html>

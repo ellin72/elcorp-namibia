@@ -1,0 +1,213 @@
+{% extends "ui/base.html" %} {% block title %}Admin — Elcorp{% endblock %} {%
+block content %}
+<div class="container">
+  <div class="page-header">
+    <h1>Admin Panel</h1>
+    <p>System statistics, user management, and audit logs</p>
+  </div>
+
+  <div id="alert" class="alert"></div>
+
+  <!-- Stats -->
+  <div id="statsGrid" class="stats-grid"></div>
+
+  <!-- Tabs -->
+  <div class="card">
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="usersTab">Users</button>
+      <button class="tab-btn" data-tab="auditTab">Audit Logs</button>
+    </div>
+
+    <!-- Users Tab -->
+    <div class="tab-panel active" id="usersTab">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Roles</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="usersBody">
+            <tr>
+              <td colspan="5" class="text-muted text-sm">Loading…</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Audit Tab -->
+    <div class="tab-panel" id="auditTab">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Event</th>
+              <th>User</th>
+              <th>Resource</th>
+              <th>IP</th>
+              <th>Time</th>
+            </tr>
+          </thead>
+          <tbody id="auditBody">
+            <tr>
+              <td colspan="5" class="text-muted text-sm">Loading…</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Role Modal -->
+<div class="modal-overlay" id="roleModal">
+  <div class="modal">
+    <h3>Update Roles</h3>
+    <div id="roleAlert" class="alert"></div>
+    <input type="hidden" id="roleUserId" />
+    <div class="form-group">
+      <label>Select Roles</label>
+      <div
+        id="roleCheckboxes"
+        style="
+          display: flex;
+          flex-direction: column;
+          gap: 0.4rem;
+          margin-top: 0.3rem;
+        "
+      >
+        <label><input type="checkbox" value="admin" /> Admin</label>
+        <label><input type="checkbox" value="staff" /> Staff</label>
+        <label><input type="checkbox" value="user" /> User</label>
+        <label><input type="checkbox" value="merchant" /> Merchant</label>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button
+        type="button"
+        class="btn btn-outline"
+        onclick="document.getElementById('roleModal').classList.remove('show')"
+      >
+        Cancel
+      </button>
+      <button class="btn btn-primary" onclick="saveRoles()">Save</button>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script>
+  (async () => {
+    if (!API.auth.isLoggedIn()) {
+      window.location.href = "/ui/login";
+      return;
+    }
+
+    // Init tabs
+    initTabs(document.querySelector(".card"));
+
+    // Load stats
+    try {
+      const s = (await API.admin.stats()).stats || (await API.admin.stats());
+      document.getElementById("statsGrid").innerHTML = `
+      <div class="stat-card"><div class="value">${s.total_users || 0}</div><div class="label">Users</div></div>
+      <div class="stat-card accent"><div class="value">${s.total_payments || 0}</div><div class="label">Payments</div></div>
+      <div class="stat-card success"><div class="value">${s.total_merchants || 0}</div><div class="label">Merchants</div></div>
+      <div class="stat-card"><div class="value">${s.pending_kyc || 0}</div><div class="label">Pending KYC</div></div>
+    `;
+    } catch {}
+
+    // Load users
+    try {
+      const data = await API.identity.listUsers();
+      const users = data.users || [];
+      const tbody = document.getElementById("usersBody");
+      if (users.length === 0) {
+        tbody.innerHTML =
+          '<tr><td colspan="5" class="text-muted text-sm">No users</td></tr>';
+      } else {
+        tbody.innerHTML = users
+          .map(
+            (u) => `
+        <tr>
+          <td>${escapeHtml((u.first_name || "") + " " + (u.last_name || ""))}</td>
+          <td>${escapeHtml(u.email || "")}</td>
+          <td>${(u.roles || []).map((r) => `<span class="badge badge-ok">${escapeHtml(r)}</span>`).join(" ")}</td>
+          <td><span class="badge ${u.is_active !== false ? "badge-ok" : "badge-failed"}">${u.is_active !== false ? "Active" : "Inactive"}</span></td>
+          <td>
+            <button class="btn btn-sm btn-outline" onclick="openRoleModal('${u.id}', ${JSON.stringify(u.roles || []).replace(/"/g, "&quot;")})">Roles</button>
+            ${u.is_active !== false ? `<button class="btn btn-sm btn-danger" onclick="deactivateUser('${u.id}')">Deactivate</button>` : ""}
+          </td>
+        </tr>
+      `,
+          )
+          .join("");
+      }
+    } catch {}
+
+    // Load audit logs
+    try {
+      const data = await API.admin.auditLogs();
+      const logs = data.logs || data.audit_logs || [];
+      const tbody = document.getElementById("auditBody");
+      if (logs.length === 0) {
+        tbody.innerHTML =
+          '<tr><td colspan="5" class="text-muted text-sm">No audit logs</td></tr>';
+      } else {
+        tbody.innerHTML = logs
+          .slice(0, 50)
+          .map(
+            (l) => `
+        <tr>
+          <td>${escapeHtml(l.event || l.action || "")}</td>
+          <td>${escapeHtml(l.user_id?.toString() || "—")}</td>
+          <td class="text-sm">${escapeHtml(l.resource_type || "")} ${escapeHtml(l.resource_id?.toString() || "")}</td>
+          <td class="text-sm">${escapeHtml(l.ip_address || "—")}</td>
+          <td>${formatDate(l.created_at)}</td>
+        </tr>
+      `,
+          )
+          .join("");
+      }
+    } catch {}
+  })();
+
+  function openRoleModal(userId, roles) {
+    document.getElementById("roleUserId").value = userId;
+    document.querySelectorAll("#roleCheckboxes input").forEach((cb) => {
+      cb.checked = roles.includes(cb.value);
+    });
+    document.getElementById("roleModal").classList.add("show");
+  }
+
+  async function saveRoles() {
+    const userId = document.getElementById("roleUserId").value;
+    const roles = Array.from(
+      document.querySelectorAll("#roleCheckboxes input:checked"),
+    ).map((c) => c.value);
+    try {
+      await API.admin.setRoles(userId, roles);
+      document.getElementById("roleModal").classList.remove("show");
+      showAlert("alert", "Roles updated", "success");
+      setTimeout(() => location.reload(), 500);
+    } catch (err) {
+      showAlert("roleAlert", err.error || "Update failed", "error");
+    }
+  }
+
+  async function deactivateUser(id) {
+    if (!confirm("Deactivate this user?")) return;
+    try {
+      await API.admin.deactivateUser(id);
+      showAlert("alert", "User deactivated", "success");
+      setTimeout(() => location.reload(), 500);
+    } catch (err) {
+      showAlert("alert", err.error || "Deactivation failed", "error");
+    }
+  }
+</script>
+{% endblock %}

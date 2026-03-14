@@ -1,0 +1,243 @@
+{% extends "ui/base.html" %} {% block title %}KYC Documents — Elcorp{% endblock
+%} {% block content %}
+<div class="container">
+  <div class="page-header flex-between">
+    <div>
+      <h1>KYC Documents</h1>
+      <p>Upload identity documents for verification</p>
+    </div>
+    <button
+      class="btn btn-primary"
+      onclick="document.getElementById('uploadModal').classList.add('show')"
+    >
+      Upload Document
+    </button>
+  </div>
+
+  <div id="alert" class="alert"></div>
+
+  <!-- Pending review (admin) -->
+  <div id="pendingSection" class="card hidden">
+    <h3>Pending Review</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>User</th>
+            <th>Type</th>
+            <th>Submitted</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="pendingBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- My documents -->
+  <div class="card">
+    <h3>My Documents</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Type</th>
+            <th>Status</th>
+            <th>Submitted</th>
+            <th>Reviewed</th>
+          </tr>
+        </thead>
+        <tbody id="docsBody">
+          <tr>
+            <td colspan="4" class="text-muted text-sm">Loading…</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Upload Modal -->
+<div class="modal-overlay" id="uploadModal">
+  <div class="modal">
+    <h3>Upload KYC Document</h3>
+    <div id="uploadAlert" class="alert"></div>
+    <form id="uploadForm">
+      <div class="form-group">
+        <label for="doc_type">Document Type</label>
+        <select id="doc_type" required>
+          <option value="national_id">National ID</option>
+          <option value="passport">Passport</option>
+          <option value="drivers_license">Driver's License</option>
+          <option value="utility_bill">Utility Bill</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="doc_file">File</label>
+        <input
+          type="file"
+          id="doc_file"
+          required
+          accept=".pdf,.jpg,.jpeg,.png"
+        />
+      </div>
+      <div class="modal-actions">
+        <button
+          type="button"
+          class="btn btn-outline"
+          onclick="
+            document.getElementById('uploadModal').classList.remove('show')
+          "
+        >
+          Cancel
+        </button>
+        <button type="submit" class="btn btn-primary" id="uploadBtn">
+          Upload
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Review Modal -->
+<div class="modal-overlay" id="reviewModal">
+  <div class="modal">
+    <h3>Review Document</h3>
+    <div id="reviewAlert" class="alert"></div>
+    <input type="hidden" id="reviewDocId" />
+    <div class="form-group">
+      <label for="reviewStatus">Decision</label>
+      <select id="reviewStatus">
+        <option value="approved">Approve</option>
+        <option value="rejected">Reject</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label for="reviewNotes">Notes</label>
+      <textarea
+        id="reviewNotes"
+        placeholder="Optional reviewer notes…"
+      ></textarea>
+    </div>
+    <div class="modal-actions">
+      <button
+        type="button"
+        class="btn btn-outline"
+        onclick="
+          document.getElementById('reviewModal').classList.remove('show')
+        "
+      >
+        Cancel
+      </button>
+      <button class="btn btn-primary" id="reviewBtn" onclick="submitReview()">
+        Submit Review
+      </button>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script>
+  async function loadDocs() {
+    try {
+      const data = await API.kyc.list();
+      const docs = data.documents || [];
+      const tbody = document.getElementById("docsBody");
+      if (docs.length === 0) {
+        tbody.innerHTML =
+          '<tr><td colspan="4" class="empty-state text-sm">No documents uploaded yet</td></tr>';
+      } else {
+        tbody.innerHTML = docs
+          .map(
+            (d) => `
+        <tr>
+          <td>${escapeHtml(d.document_type || "")}</td>
+          <td><span class="badge ${badgeClass(d.status)}">${escapeHtml(d.status || "")}</span></td>
+          <td>${formatDate(d.created_at)}</td>
+          <td>${d.reviewed_at ? formatDate(d.reviewed_at) : "—"}</td>
+        </tr>
+      `,
+          )
+          .join("");
+      }
+    } catch (err) {
+      showAlert("alert", "Failed to load documents", "error");
+    }
+  }
+
+  async function loadPending() {
+    try {
+      const data = await API.kyc.pending();
+      const docs = data.documents || [];
+      if (docs.length === 0) return;
+      document.getElementById("pendingSection").classList.remove("hidden");
+      document.getElementById("pendingBody").innerHTML = docs
+        .map(
+          (d) => `
+      <tr>
+        <td>${escapeHtml(d.user_id?.toString() || "")}</td>
+        <td>${escapeHtml(d.document_type || "")}</td>
+        <td>${formatDate(d.created_at)}</td>
+        <td><button class="btn btn-sm btn-accent" onclick="openReview('${d.id}')">Review</button></td>
+      </tr>
+    `,
+        )
+        .join("");
+    } catch {}
+  }
+
+  function openReview(id) {
+    document.getElementById("reviewDocId").value = id;
+    document.getElementById("reviewModal").classList.add("show");
+  }
+
+  async function submitReview() {
+    const id = document.getElementById("reviewDocId").value;
+    const btn = document.getElementById("reviewBtn");
+    btn.disabled = true;
+    try {
+      await API.kyc.review(id, {
+        status: document.getElementById("reviewStatus").value,
+        notes: document.getElementById("reviewNotes").value,
+      });
+      document.getElementById("reviewModal").classList.remove("show");
+      showAlert("alert", "Review submitted", "success");
+      loadDocs();
+      loadPending();
+    } catch (err) {
+      showAlert("reviewAlert", err.error || "Review failed", "error");
+    }
+    btn.disabled = false;
+  }
+
+  document
+    .getElementById("uploadForm")
+    .addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById("uploadBtn");
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Uploading…';
+      try {
+        const fd = new FormData();
+        fd.append("document_type", document.getElementById("doc_type").value);
+        fd.append("file", document.getElementById("doc_file").files[0]);
+        await API.kyc.upload(fd);
+        document.getElementById("uploadModal").classList.remove("show");
+        showAlert("alert", "Document uploaded", "success");
+        loadDocs();
+      } catch (err) {
+        showAlert("uploadAlert", err.error || "Upload failed", "error");
+      }
+      btn.disabled = false;
+      btn.textContent = "Upload";
+    });
+
+  (async () => {
+    if (!API.auth.isLoggedIn()) {
+      window.location.href = "/ui/login";
+      return;
+    }
+    loadDocs();
+    loadPending();
+  })();
+</script>
+{% endblock %}

@@ -1,0 +1,51 @@
+{% extends "ui/base.html" %} {% block title %}Sign In — Elcorp{% endblock %} {%
+block content %}
+<div class="auth-container">
+  <div class="card">
+    <h2>Sign In</h2>
+    <p class="subtitle">Access your Elcorp account</p>
+    <div id="alert" class="alert"></div>
+    <form id="loginForm">
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input type="email" id="email" required placeholder="you@example.com" />
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input
+          type="password"
+          id="password"
+          required
+          placeholder="Enter password"
+        />
+      </div>
+      <button type="submit" class="btn btn-primary btn-block" id="submitBtn">
+        Sign In
+      </button>
+    </form>
+    <p class="footer-link">
+      Don't have an account? <a href="/ui/signup">Sign up</a>
+    </p>
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script>
+  document.getElementById("loginForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById("submitBtn");
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Signing in…';
+    try {
+      await API.auth.login(
+        document.getElementById("email").value,
+        document.getElementById("password").value,
+      );
+      window.location.href = "/ui/dashboard";
+    } catch (err) {
+      showAlert("alert", err.error || "Login failed", "error");
+      btn.disabled = false;
+      btn.textContent = "Sign In";
+    }
+  });
+</script>
+{% endblock %}
